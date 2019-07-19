@@ -62,7 +62,8 @@ set(SOURCE_FILES
         FileSettings.cc
         Util.cc
         FileListHandler.cc
-        Tile.cc)
+        Tile.cc
+        AnimationObject.cc)
 add_definitions(-DHAVE_HDF5)
 add_executable(carta_backend ${SOURCE_FILES})
 if (${CMAKE_SYSTEM_NAME} MATCHES "Darwin")
