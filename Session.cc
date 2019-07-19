@@ -1121,7 +1121,8 @@ void Session::HandleAnimationFlowControlEvt(CARTA::AnimationFlowControl& message
     int gap;
 
     _animation_object->_last_flow_frame = message.received_frame();
-
+    _animation_object->UpdateFrameRate(message.timestamp());
+    
     gap = CalculateAnimationFlowWindow();
 
     if (_animation_object->_waiting_flow_event) {
