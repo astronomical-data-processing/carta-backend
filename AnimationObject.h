@@ -13,6 +13,8 @@ const int AnimationFlowWindowConstant = 5;
 const int AnimationFlowWindowScaler = 2;
 } // namespace CARTA
 
+const int ANI_SMOOTHING_SIZE = 50;
+
 class AnimationObject {
     friend class Session;
 
@@ -26,6 +28,7 @@ class AnimationObject {
     CARTA::AnimationFrame _stop_frame;
     CARTA::AnimationFrame _last_flow_frame;
     int _frame_rate;
+    int _set_frame_rate;
     std::chrono::microseconds _frame_interval;
     std::chrono::time_point<std::chrono::high_resolution_clock> _t_start;
     std::chrono::time_point<std::chrono::high_resolution_clock> _t_last;
@@ -39,35 +42,22 @@ class AnimationObject {
     volatile bool _waiting_flow_event;
     tbb::task_group_context _tbb_context;
 
+    int _s_start;
+    int _s_end;
+    int _s_size;
+    int _smooth_sum;
+    int _last_timestamp;
+    int _smoothing[ANI_SMOOTHING_SIZE];
 public:
     AnimationObject(int file_id, CARTA::AnimationFrame& start_frame, CARTA::AnimationFrame& first_frame, CARTA::AnimationFrame& last_frame,
-        CARTA::AnimationFrame& delta_frame, int frame_rate, bool looping, bool reverse_at_end, bool always_wait)
-        : _file_id(file_id),
-          _start_frame(start_frame),
-          _first_frame(first_frame),
-          _last_frame(last_frame),
-          _delta_frame(delta_frame),
-          _looping(looping),
-          _reverse_at_end(reverse_at_end),
-          _frame_rate(frame_rate),
-          _always_wait(always_wait) {
-        _current_frame = start_frame;
-        _next_frame = start_frame;
-        _frame_interval = std::chrono::microseconds(int64_t(1.0e6 / frame_rate));
-        _going_forward = true;
-        _wait_duration_ms = 100;
-        _stop_called = false;
-        _file_open = true;
-        _waiting_flow_event = false;
-        _last_flow_frame = start_frame;
-        _stop_frame = start_frame;
-    }
+        CARTA::AnimationFrame& delta_frame, int frame_rate, bool looping, bool reverse_at_end, bool always_wait);
     int CurrentFlowWindowSize() {
         return (CARTA::AnimationFlowWindowConstant * CARTA::AnimationFlowWindowScaler * _frame_rate);
     }
     void CancelExecution() {
         _tbb_context.cancel_group_execution();
     }
+    void UpdateFrameRate(int timestamp);
 };
 
 #endif // CARTA_BACKEND__ANIMATIONOBJECT_H_
