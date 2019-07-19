@@ -857,8 +857,8 @@ bool Frame::FillSpatialProfileData(int region_id, CARTA::SpatialProfileData& pro
     return profile_ok;
 }
 
-bool Frame::FillSpectralProfileData(std::function<void(CARTA::SpectralProfileData profile_data)> cb,
-    int region_id, bool channel_changed, bool stokes_changed) {
+bool Frame::FillSpectralProfileData(
+    std::function<void(CARTA::SpectralProfileData profile_data)> cb, int region_id, bool channel_changed, bool stokes_changed) {
     // fill spectral profile message with requested statistics (or values for a point region)
     bool profile_ok(false);
     if (_regions.count(region_id)) {
@@ -919,7 +919,7 @@ bool Frame::FillSpectralProfileData(std::function<void(CARTA::SpectralProfileDat
                         guard.unlock();
                     }
                 } else { // statistics
-                    // do calculations for the image dimensions >= 3 
+                    // do calculations for the image dimensions >= 3
                     if (_image_shape.size() < 3) {
                         CARTA::SpectralProfileData profile_data;
                         profile_data.set_stokes(curr_stokes);
@@ -1294,8 +1294,8 @@ bool Frame::GetRegionSpectralData(std::vector<std::vector<double>>& stats_values
                     memcpy(&results[j][start], &buffer[j][0], buffer[j].size() * sizeof(double));
                 }
             } else {
-                std::cerr << "Can not get zprofile (statistics), region id: " << region_id
-                    << ", channel range: [" << start << "," << end << "]" << std::endl;
+                std::cerr << "Can not get zprofile (statistics), region id: " << region_id << ", channel range: [" << start << "," << end
+                          << "]" << std::endl;
                 return false;
             }
         }

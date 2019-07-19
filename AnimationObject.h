@@ -48,6 +48,7 @@ class AnimationObject {
     int _smooth_sum;
     int _last_timestamp;
     int _smoothing[ANI_SMOOTHING_SIZE];
+
 public:
     AnimationObject(int file_id, CARTA::AnimationFrame& start_frame, CARTA::AnimationFrame& first_frame, CARTA::AnimationFrame& last_frame,
         CARTA::AnimationFrame& delta_frame, int frame_rate, bool looping, bool reverse_at_end, bool always_wait);
