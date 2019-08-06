@@ -53,7 +53,7 @@ public:
           _always_wait(always_wait) {
         _current_frame = start_frame;
         _next_frame = start_frame;
-        _frame_interval = std::chrono::microseconds(int64_t(1.0e6 / frame_rate));
+        _frame_interval = std::chrono::microseconds(int64_t(1.0e6 / frame_rate) - 300);
         _going_forward = true;
         _wait_duration_ms = 100;
         _stop_called = false;
