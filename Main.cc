@@ -49,6 +49,9 @@ void OnConnect(uWS::WebSocket<uWS::SERVER>* ws, uWS::HttpRequest http_request) {
     // Check for authorization token
     if (!token.empty()) {
         string expected_auth_header = fmt::format("CARTA-Authorization={}", token);
+        auto header_username = http_request.getHeader("username");
+        string auth_username_string(header_username.value, header_username.valueLength);
+        std::cerr << "username = " << auth_username_string << std::endl;
         auto cookie_header = http_request.getHeader("cookie");
         string auth_header_string(cookie_header.value, cookie_header.valueLength);
         if (auth_header_string.find(expected_auth_header) == string::npos) {
@@ -158,6 +161,52 @@ void OnMessage(uWS::WebSocket<uWS::SERVER>* ws, char* raw_message, size_t length
                         tsk = new (tbb::task::allocate_root(session->Context())) SetCursorTask(session, message.file_id());
                     } else {
                         fmt::print("Bad SET_CURSOR message!\n");
+                    }
+                    break;
+                }
+                case CARTA::EventType::SET_REGION: {
+                    CARTA::SetRegion message;
+                    if (message.ParseFromArray(event_buf, event_length)) {
+                        session->OnSetRegion(message, head.request_id);
+                    } else {
+                        fmt::print("Bad SET_REGION message!\n");
+                    }
+                    break;
+                }
+
+                case CARTA::EventType::SET_SPATIAL_REQUIREMENTS: {
+                    CARTA::SetSpatialRequirements message;
+                    if (message.ParseFromArray(event_buf, event_length)) {
+                        session->OnSetSpatialRequirements(message);
+                    } else {
+                        fmt::print("Bad SET_SPATIAL_REQUIREMENTS message!\n");
+                    }
+                    break;
+                }
+                case CARTA::EventType::SET_SPECTRAL_REQUIREMENTS: {
+                    CARTA::SetSpectralRequirements message;
+                    if (message.ParseFromArray(event_buf, event_length)) {
+                        session->OnSetSpectralRequirements(message);
+                    } else {
+                        fmt::print("Bad SET_SPECTRAL_REQUIREMENTS message!\n");
+                    }
+                    break;
+                }
+                case CARTA::EventType::SET_STATS_REQUIREMENTS: {
+                    CARTA::SetStatsRequirements message;
+                    if (message.ParseFromArray(event_buf, event_length)) {
+                        session->OnSetStatsRequirements(message);
+                    } else {
+                        fmt::print("Bad SET_STATS_REQUIREMENTS message!\n");
+                    }
+                    break;
+                }
+                case CARTA::EventType::REMOVE_REGION: {
+                    CARTA::RemoveRegion message;
+                    if (message.ParseFromArray(event_buf, event_length)) {
+                        session->OnRemoveRegion(message);
+                    } else {
+                        fmt::print("Bad REMOVE_REGION message!\n");
                     }
                     break;
                 }
