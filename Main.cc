@@ -200,7 +200,6 @@ void OnMessage(uWS::WebSocket<uWS::SERVER>* ws, char* raw_message, size_t length
                     }
                     break;
                 }
-
                 case CARTA::EventType::SET_SPATIAL_REQUIREMENTS: {
                     CARTA::SetSpatialRequirements message;
                     if (message.ParseFromArray(event_buf, event_length)) {
