@@ -106,8 +106,6 @@ void OnDisconnect(uWS::WebSocket<uWS::SERVER>* ws, int code, char* message, size
     }
 }
 
-
-
 using namespace std::chrono;
 high_resolution_clock::time_point mlast_clock;
 
@@ -125,12 +123,12 @@ void OnMessage(uWS::WebSocket<uWS::SERVER>* ws, char* raw_message, size_t length
             char* event_buf = raw_message + sizeof(carta::EventHeader);
             int event_length = length - sizeof(carta::EventHeader);
             OnMessageTask* tsk = nullptr;
-	    std::chrono::time_point<std::chrono::high_resolution_clock> t_now;
-	    
-	    if (profile_level) {
-	      t_now = std::chrono::high_resolution_clock::now();	    
-	    }
-	    
+            std::chrono::time_point<std::chrono::high_resolution_clock> t_now;
+
+            if (profile_level) {
+                t_now = std::chrono::high_resolution_clock::now();
+            }
+
             switch (head.type) {
                 case CARTA::EventType::REGISTER_VIEWER: {
                     CARTA::RegisterViewer message;
@@ -138,6 +136,42 @@ void OnMessage(uWS::WebSocket<uWS::SERVER>* ws, char* raw_message, size_t length
                         session->OnRegisterViewer(message, head.icd_version, head.request_id);
                     } else {
                         fmt::print("Bad REGISTER_VIEWER message!\n");
+                    }
+                    break;
+                }
+                case CARTA::EventType::FILE_LIST_REQUEST: {
+                    CARTA::FileListRequest message;
+                    if (message.ParseFromArray(event_buf, event_length)) {
+                        session->OnFileListRequest(message, head.request_id);
+                    } else {
+                        fmt::print("Bad FILE_LIST_REQUEST message!\n");
+                    }
+                    break;
+                }
+                case CARTA::EventType::FILE_INFO_REQUEST: {
+                    CARTA::FileInfoRequest message;
+                    if (message.ParseFromArray(event_buf, event_length)) {
+                        session->OnFileInfoRequest(message, head.request_id);
+                    } else {
+                        fmt::print("Bad FILE_INFO_REQUEST message!\n");
+                    }
+                    break;
+                }
+                case CARTA::EventType::OPEN_FILE: {
+                    CARTA::OpenFile message;
+                    if (message.ParseFromArray(event_buf, event_length)) {
+                        session->OnOpenFile(message, head.request_id);
+                    } else {
+                        fmt::print("Bad OPEN_FILE message!\n");
+                    }
+                    break;
+                }
+                case CARTA::EventType::SET_IMAGE_VIEW: {
+                    CARTA::SetImageView message;
+                    if (message.ParseFromArray(event_buf, event_length)) {
+                        session->OnSetImageView(message);
+                    } else {
+                        fmt::print("Bad SET_IMAGE_VIEW message!\n");
                     }
                     break;
                 }
@@ -156,15 +190,6 @@ void OnMessage(uWS::WebSocket<uWS::SERVER>* ws, char* raw_message, size_t length
                     }
                     break;
                 }
-                case CARTA::EventType::SET_IMAGE_VIEW: {
-                    CARTA::SetImageView message;
-                    if (message.ParseFromArray(event_buf, event_length)) {
-                        session->OnSetImageView(message);
-                    } else {
-                        fmt::print("Bad SET_IMAGE_VIEW message!\n");
-                    }
-                    break;
-                }
                 case CARTA::EventType::SET_CURSOR: {
                     CARTA::SetCursor message;
                     if (message.ParseFromArray(event_buf, event_length)) {
@@ -175,48 +200,13 @@ void OnMessage(uWS::WebSocket<uWS::SERVER>* ws, char* raw_message, size_t length
                     }
                     break;
                 }
-                case CARTA::EventType::SET_REGION: {
-                    CARTA::SetRegion message;
-                    if (message.ParseFromArray(event_buf, event_length)) {
-                        session->OnSetRegion(message, head.request_id);
-                    } else {
-                        fmt::print("Bad SET_REGION message!\n");
-                    }
-                    break;
-                }
+
                 case CARTA::EventType::SET_SPATIAL_REQUIREMENTS: {
                     CARTA::SetSpatialRequirements message;
                     if (message.ParseFromArray(event_buf, event_length)) {
                         session->OnSetSpatialRequirements(message);
                     } else {
                         fmt::print("Bad SET_SPATIAL_REQUIREMENTS message!\n");
-                    }
-                    break;
-                }
-                case CARTA::EventType::SET_SPECTRAL_REQUIREMENTS: {
-                    CARTA::SetSpectralRequirements message;
-                    if (message.ParseFromArray(event_buf, event_length)) {
-                        session->OnSetSpectralRequirements(message);
-                    } else {
-                        fmt::print("Bad SET_SPECTRAL_REQUIREMENTS message!\n");
-                    }
-                    break;
-                }
-                case CARTA::EventType::SET_STATS_REQUIREMENTS: {
-                    CARTA::SetStatsRequirements message;
-                    if (message.ParseFromArray(event_buf, event_length)) {
-                        session->OnSetStatsRequirements(message);
-                    } else {
-                        fmt::print("Bad SET_STATS_REQUIREMENTS message!\n");
-                    }
-                    break;
-                }
-                case CARTA::EventType::REMOVE_REGION: {
-                    CARTA::RemoveRegion message;
-                    if (message.ParseFromArray(event_buf, event_length)) {
-                        session->OnRemoveRegion(message);
-                    } else {
-                        fmt::print("Bad REMOVE_REGION message!\n");
                     }
                     break;
                 }
@@ -235,6 +225,33 @@ void OnMessage(uWS::WebSocket<uWS::SERVER>* ws, char* raw_message, size_t length
                     }
                     break;
                 }
+                case CARTA::EventType::SET_STATS_REQUIREMENTS: {
+                    CARTA::SetStatsRequirements message;
+                    if (message.ParseFromArray(event_buf, event_length)) {
+                        session->OnSetStatsRequirements(message);
+                    } else {
+                        fmt::print("Bad SET_STATS_REQUIREMENTS message!\n");
+                    }
+                    break;
+                }
+                case CARTA::EventType::SET_REGION: {
+                    CARTA::SetRegion message;
+                    if (message.ParseFromArray(event_buf, event_length)) {
+                        session->OnSetRegion(message, head.request_id);
+                    } else {
+                        fmt::print("Bad SET_REGION message!\n");
+                    }
+                    break;
+                }
+                case CARTA::EventType::REMOVE_REGION: {
+                    CARTA::RemoveRegion message;
+                    if (message.ParseFromArray(event_buf, event_length)) {
+                        session->OnRemoveRegion(message);
+                    } else {
+                        fmt::print("Bad REMOVE_REGION message!\n");
+                    }
+                    break;
+                }
                 case CARTA::EventType::CLOSE_FILE: {
                     CARTA::CloseFile message;
                     if (message.ParseFromArray(event_buf, event_length)) {
@@ -243,6 +260,15 @@ void OnMessage(uWS::WebSocket<uWS::SERVER>* ws, char* raw_message, size_t length
                         session->OnCloseFile(message);
                     } else {
                         fmt::print("Bad CLOSE_FILE message!\n");
+                    }
+                    break;
+                }
+                case CARTA::EventType::SET_SPECTRAL_REQUIREMENTS: {
+                    CARTA::SetSpectralRequirements message;
+                    if (message.ParseFromArray(event_buf, event_length)) {
+                        session->OnSetSpectralRequirements(message);
+                    } else {
+                        fmt::print("Bad SET_SPECTRAL_REQUIREMENTS message!\n");
                     }
                     break;
                 }
@@ -275,33 +301,6 @@ void OnMessage(uWS::WebSocket<uWS::SERVER>* ws, char* raw_message, size_t length
                     }
                     break;
                 }
-                case CARTA::EventType::FILE_INFO_REQUEST: {
-                    CARTA::FileInfoRequest message;
-                    if (message.ParseFromArray(event_buf, event_length)) {
-                        session->OnFileInfoRequest(message, head.request_id);
-                    } else {
-                        fmt::print("Bad FILE_INFO_REQUEST message!\n");
-                    }
-                    break;
-                }
-                case CARTA::EventType::FILE_LIST_REQUEST: {
-                    CARTA::FileListRequest message;
-                    if (message.ParseFromArray(event_buf, event_length)) {
-                        session->OnFileListRequest(message, head.request_id);
-                    } else {
-                        fmt::print("Bad FILE_LIST_REQUEST message!\n");
-                    }
-                    break;
-                }
-                case CARTA::EventType::OPEN_FILE: {
-                    CARTA::OpenFile message;
-                    if (message.ParseFromArray(event_buf, event_length)) {
-                        session->OnOpenFile(message, head.request_id);
-                    } else {
-                        fmt::print("Bad OPEN_FILE message!\n");
-                    }
-                    break;
-                }
                 case CARTA::EventType::ADD_REQUIRED_TILES: {
                     CARTA::AddRequiredTiles message;
                     message.ParseFromArray(event_buf, event_length);
@@ -312,17 +311,17 @@ void OnMessage(uWS::WebSocket<uWS::SERVER>* ws, char* raw_message, size_t length
                     fmt::print("Bad event type in MultiMessageType:execute : ({})", head.type);
                     break;
                 }
-	    }
+            }
 
             if (tsk) {
                 tbb::task::enqueue(*tsk);
             }
 
-	    if (profile_level) {
-	      duration<double> time_span = duration_cast<duration<double>>(t_now - mlast_clock);
-	      fprintf(stdout,"M(%d)(%0.6f)\n", head.type, time_span.count());
-	      mlast_clock = t_now;
-	    }
+            if (profile_level) {
+                duration<double> time_span = duration_cast<duration<double>>(t_now - mlast_clock);
+                fprintf(stdout, "M(%d)(%0.6f)\n", head.type, time_span.count());
+                mlast_clock = t_now;
+            }
         }
     } else if (op_code == uWS::OpCode::TEXT) {
         if (strncmp(raw_message, "PING", 4) == 0) {
@@ -379,7 +378,7 @@ int main(int argc, const char* argv[]) {
             inp.create("exit_after", "", "number of seconds to stay alive after last sessions exists", "Int");
             inp.create("init_exit_after", "", "number of seconds to stay alive at start if no clents connect", "Int");
             inp.create("read_json_file", json_fname, "read in json file with secure token", "String");
-	    inp.create("profile", to_string(profile_level), "enable profiling", "Int");
+            inp.create("profile", to_string(profile_level), "enable profiling", "Int");
             inp.readArguments(argc, argv);
 
             verbose = inp.getBool("verbose");
@@ -389,7 +388,7 @@ int main(int argc, const char* argv[]) {
             base_folder = inp.getString("base");
             root_folder = inp.getString("root");
             token = inp.getString("token");
-	    profile_level = inp.getInt("profile");
+            profile_level = inp.getInt("profile");
 
             bool has_exit_after_arg = inp.getString("exit_after").size();
             if (has_exit_after_arg) {
@@ -412,12 +411,14 @@ int main(int argc, const char* argv[]) {
             return 1;
         }
 
-	unsigned int hw_concurrency = std::thread::hardware_concurrency();
-	if (thread_count >  hw_concurrency) {
-	  std::cout << "Restricting thread count to number of hardware threads in the system, as this is how Intel's TBB library works best." << std::endl;
-	  thread_count = hw_concurrency;
-	}
-	
+        unsigned int hw_concurrency = std::thread::hardware_concurrency();
+        if (thread_count > hw_concurrency) {
+            std::cout
+                << "Restricting thread count to number of hardware threads in the system, as this is how Intel's TBB library works best."
+                << std::endl;
+            thread_count = hw_concurrency;
+        }
+
         // Construct task scheduler, permissions
         tbb::task_scheduler_init task_scheduler(thread_count);
         CARTA::global_thread_count = thread_count;
