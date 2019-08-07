@@ -43,6 +43,7 @@ static uWS::Hub websocket_hub;
 static string root_folder("/"), base_folder("."), version_id("1.1");
 static bool verbose, use_permissions;
 static string token;
+static int profile_level = 0;
 
 // Called on connection. Creates session objects and assigns UUID and API keys to it
 void OnConnect(uWS::WebSocket<uWS::SERVER>* ws, uWS::HttpRequest http_request) {
@@ -105,6 +106,11 @@ void OnDisconnect(uWS::WebSocket<uWS::SERVER>* ws, int code, char* message, size
     }
 }
 
+
+
+using namespace std::chrono;
+high_resolution_clock::time_point mlast_clock;
+
 // Forward message requests to session callbacks after parsing message into relevant ProtoBuf message
 void OnMessage(uWS::WebSocket<uWS::SERVER>* ws, char* raw_message, size_t length, uWS::OpCode op_code) {
     Session* session = (Session*)ws->getUserData();
@@ -119,7 +125,12 @@ void OnMessage(uWS::WebSocket<uWS::SERVER>* ws, char* raw_message, size_t length
             char* event_buf = raw_message + sizeof(carta::EventHeader);
             int event_length = length - sizeof(carta::EventHeader);
             OnMessageTask* tsk = nullptr;
-
+	    std::chrono::time_point<std::chrono::high_resolution_clock> t_now;
+	    
+	    if (profile_level) {
+	      t_now = std::chrono::high_resolution_clock::now();	    
+	    }
+	    
             switch (head.type) {
                 case CARTA::EventType::REGISTER_VIEWER: {
                     CARTA::RegisterViewer message;
@@ -173,7 +184,6 @@ void OnMessage(uWS::WebSocket<uWS::SERVER>* ws, char* raw_message, size_t length
                     }
                     break;
                 }
-
                 case CARTA::EventType::SET_SPATIAL_REQUIREMENTS: {
                     CARTA::SetSpatialRequirements message;
                     if (message.ParseFromArray(event_buf, event_length)) {
@@ -302,11 +312,17 @@ void OnMessage(uWS::WebSocket<uWS::SERVER>* ws, char* raw_message, size_t length
                     fmt::print("Bad event type in MultiMessageType:execute : ({})", head.type);
                     break;
                 }
-            }
+	    }
 
             if (tsk) {
                 tbb::task::enqueue(*tsk);
             }
+
+	    if (profile_level) {
+	      duration<double> time_span = duration_cast<duration<double>>(t_now - mlast_clock);
+	      fprintf(stdout,"M(%d)(%0.6f)\n", head.type, time_span.count());
+	      mlast_clock = t_now;
+	    }
         }
     } else if (op_code == uWS::OpCode::TEXT) {
         if (strncmp(raw_message, "PING", 4) == 0) {
@@ -363,6 +379,7 @@ int main(int argc, const char* argv[]) {
             inp.create("exit_after", "", "number of seconds to stay alive after last sessions exists", "Int");
             inp.create("init_exit_after", "", "number of seconds to stay alive at start if no clents connect", "Int");
             inp.create("read_json_file", json_fname, "read in json file with secure token", "String");
+	    inp.create("profile", to_string(profile_level), "enable profiling", "Int");
             inp.readArguments(argc, argv);
 
             verbose = inp.getBool("verbose");
@@ -372,6 +389,7 @@ int main(int argc, const char* argv[]) {
             base_folder = inp.getString("base");
             root_folder = inp.getString("root");
             token = inp.getString("token");
+	    profile_level = inp.getInt("profile");
 
             bool has_exit_after_arg = inp.getString("exit_after").size();
             if (has_exit_after_arg) {
@@ -394,6 +412,12 @@ int main(int argc, const char* argv[]) {
             return 1;
         }
 
+	unsigned int hw_concurrency = std::thread::hardware_concurrency();
+	if (thread_count >  hw_concurrency) {
+	  std::cout << "Restricting thread count to number of hardware threads in the system, as this is how Intel's TBB library works best." << std::endl;
+	  thread_count = hw_concurrency;
+	}
+	
         // Construct task scheduler, permissions
         tbb::task_scheduler_init task_scheduler(thread_count);
         CARTA::global_thread_count = thread_count;
@@ -410,7 +434,7 @@ int main(int argc, const char* argv[]) {
         websocket_hub.onConnection(&OnConnect);
         websocket_hub.onDisconnection(&OnDisconnect);
         if (websocket_hub.listen(port)) {
-            fmt::print("Listening on port {} with root folder {}, base folder {}, and {} threads in thread pool\n", port, root_folder,
+            fmt::print("Listening on port {} with root folder {}, base folder {}, and {} threads in TBB thread pool\n", port, root_folder,
                 base_folder, thread_count);
             websocket_hub.run();
         } else {
