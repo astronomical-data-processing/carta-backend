@@ -178,13 +178,17 @@ void OnMessage(uWS::WebSocket<uWS::SERVER>* ws, char* raw_message, size_t length
                 case CARTA::EventType::SET_IMAGE_CHANNELS: {
                     CARTA::SetImageChannels message;
                     if (message.ParseFromArray(event_buf, event_length)) {
-                        session->ImageChannelLock();
+#if 0
+		      session->ImageChannelLock();
                         if (!session->ImageChannelTaskTestAndSet()) {
                             tsk = new (tbb::task::allocate_root(session->Context())) SetImageChannelsTask(session);
                         }
                         // has its own queue to keep channels in order during animation
                         session->AddToSetChannelQueue(message, head.request_id);
                         session->ImageChannelUnlock();
+#else		
+			session->ExecuteSetChannelEvt(std::make_pair(message, head.request_id));
+#endif			
                     } else {
                         fmt::print("Bad SET_IMAGE_CHANNELS message!\n");
                     }
@@ -194,7 +198,11 @@ void OnMessage(uWS::WebSocket<uWS::SERVER>* ws, char* raw_message, size_t length
                     CARTA::SetCursor message;
                     if (message.ParseFromArray(event_buf, event_length)) {
                         session->AddCursorSetting(message, head.request_id);
+#if 0
                         tsk = new (tbb::task::allocate_root(session->Context())) SetCursorTask(session, message.file_id());
+#else
+                        session->_file_settings.ExecuteOne(CARTA::EventType::SET_CURSOR, message.file_id());
+#endif
                     } else {
                         fmt::print("Bad SET_CURSOR message!\n");
                     }
@@ -303,12 +311,15 @@ void OnMessage(uWS::WebSocket<uWS::SERVER>* ws, char* raw_message, size_t length
                 case CARTA::EventType::ADD_REQUIRED_TILES: {
                     CARTA::AddRequiredTiles message;
                     message.ParseFromArray(event_buf, event_length);
-                    tsk = new (tbb::task::allocate_root(session->Context())) OnAddRequiredTilesTask(session, message);
+#if 0
+		    tsk = new (tbb::task::allocate_root(session->Context())) OnAddRequiredTilesTask(session, message);
+#else
+                    session->OnAddRequiredTiles(message);
+#endif
                     break;
                 }
                 default: {
                     fmt::print("Bad event type in MultiMessageType:execute : ({})", head.type);
-                    break;
                 }
             }
 
