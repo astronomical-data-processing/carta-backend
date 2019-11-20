@@ -15,6 +15,7 @@
 #include <tbb/atomic.h>
 #include <tbb/queuing_rw_mutex.h>
 
+#include <carta-protobuf/contour.pb.h>
 #include <carta-protobuf/defs.pb.h>
 #include <carta-protobuf/export_region.pb.h>
 #include <carta-protobuf/import_region.pb.h>
@@ -24,6 +25,7 @@
 #include <carta-protobuf/spatial_profile.pb.h>
 #include <carta-protobuf/spectral_profile.pb.h>
 
+#include "Contouring.h"
 #include "ImageData/FileLoader.h"
 #include "InterfaceConstants.h"
 #include "Region/Region.h"
@@ -37,14 +39,50 @@ struct ViewSettings {
     int num_subsets;
 };
 
+struct ContourSettings {
+    std::vector<double> levels;
+    CARTA::SmoothingMode smoothing_mode;
+    int smoothing_factor;
+    int decimation;
+    int compression_level;
+    int chunk_size;
+    uint32_t reference_file_id;
+
+    // Equality operator for checking if contour settings have changed
+    bool operator==(const ContourSettings& rhs) const {
+        if (this->smoothing_mode != rhs.smoothing_mode || this->smoothing_factor != rhs.smoothing_factor ||
+            this->decimation != rhs.decimation || this->compression_level != rhs.compression_level ||
+            this->reference_file_id != rhs.reference_file_id || this->chunk_size != rhs.chunk_size) {
+            return false;
+        }
+        if (this->levels.size() != rhs.levels.size()) {
+            return false;
+        }
+
+        for (auto i = 0; i < this->levels.size(); i++) {
+            if (this->levels[i] != rhs.levels[i]) {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    bool operator!=(const ContourSettings& rhs) const {
+        return !(*this == rhs);
+    }
+};
+
 class Frame {
 public:
-    Frame(uint32_t session_id, const std::string& filename, const std::string& hdu, const CARTA::FileInfoExtended* info,
+    Frame(uint32_t session_id, const std::string& filename, const std::string& hdu, const CARTA::FileInfoExtended* info, bool verbose,
         int default_channel = DEFAULT_CHANNEL);
     ~Frame();
 
-    // frame info
     bool IsValid();
+    std::string GetErrorMessage();
+
+    // frame info
     std::vector<int> GetRegionIds();
     int GetMaxRegionId();
     size_t NumChannels(); // if no channel axis, nchan=1
@@ -61,8 +99,8 @@ public:
     }
     bool RegionChanged(int region_id);
     void RemoveRegion(int region_id);
-    void ImportRegionFile(CARTA::FileType file_type, std::string& filename, CARTA::ImportRegionAck& import_ack);
-    void ImportRegionContents(CARTA::FileType file_type, std::vector<std::string>& contents, CARTA::ImportRegionAck& import_ack);
+    void ImportRegion(
+        CARTA::FileType file_type, std::string& filename, std::vector<std::string>& contents, CARTA::ImportRegionAck& import_ack);
     void ExportRegion(CARTA::FileType file_type, CARTA::CoordinateType coord_type, std::vector<int>& region_ids, std::string& filename,
         CARTA::ExportRegionAck& export_ack);
 
@@ -87,6 +125,13 @@ public:
         bool channel_changed = false, bool stokes_changed = false);
     bool FillRegionHistogramData(int region_id, CARTA::RegionHistogramData* histogram_data, bool channel_changed = false);
     bool FillRegionStatsData(int region_id, CARTA::RegionStatsData& stats_data);
+
+    // Functions used for smoothing and contouring
+    bool SetContourParameters(const CARTA::SetContourParameters& message);
+    inline ContourSettings& GetContourParameters() {
+        return _contour_settings;
+    };
+    bool ContourImage(ContourCallback& partial_contour_callback);
 
     // histogram only (not full data message) : get if stored, else can calculate
     bool GetRegionMinMax(int region_id, int channel, int stokes, float& min_val, float& max_val);
@@ -115,12 +160,14 @@ public:
     }
 
     // Get current region states
-    RegionState GetRegionState(int region_id);
+    bool GetRegionState(int region_id, RegionState& region_state);
+    // Get current region spectral config
+    bool GetRegionSpectralConfig(int region_id, int config_stokes, SpectralConfig& config_stats);
 
     // Interrupt conditions
     bool Interrupt(int region_id, const CursorXy& cursor1, const CursorXy& cursor2); // cursor and point regions
-    bool Interrupt(int region_id, const RegionState& region_state);
-    bool Interrupt(int region_id, int profile_index, const RegionState& region_state, const std::vector<int>& requested_stats);
+    bool Interrupt(int region_id, int profile_stokes, const RegionState& start_region_state, const SpectralConfig& start_config_stats,
+        bool is_HDF5 = false);
 
 private:
     // Internal regions: image, cursor
@@ -128,9 +175,12 @@ private:
     void SetDefaultCursor();            // using center point of image
 
     // Region import/export helpers
-    bool ImportCrtfFileLine(casa::AsciiAnnotationFileLine& file_line, const casacore::CoordinateSystem& coord_sys,
-        CARTA::ImportRegionAck& import_ack, std::string message);
-    void ExportCrtfRegion(
+    void ImportAnnotationFileLine(casa::AsciiAnnotationFileLine& file_line, const casacore::CoordinateSystem& coord_sys,
+        CARTA::FileType file_type, CARTA::ImportRegionAck& import_ack, std::string message);
+    casacore::String AnnTypeToDs9String(casa::AnnotationBase::Type annotation_type);
+    void ExportCrtfRegions(
+        std::vector<int>& region_ids, CARTA::CoordinateType coord_type, std::string& filename, CARTA::ExportRegionAck& export_ack);
+    void ExportDs9Regions(
         std::vector<int>& region_ids, CARTA::CoordinateType coord_type, std::string& filename, CARTA::ExportRegionAck& export_ack);
 
     // Image view settings
@@ -168,26 +218,25 @@ private:
     // get cursor's x-y coordinate from subimage
     bool GetSubImageXy(casacore::SubImage<float>& sub_image, CursorXy& cursor_xy);
     // get point spectral profile data from subimage
-    bool GetPointSpectralData(std::vector<float>& data, int region_id, casacore::SubImage<float>& sub_image,
+    bool GetPointSpectralData(int region_id, casacore::SubImage<float>& sub_image,
         const std::function<void(std::vector<float>, float)>& partial_results_callback);
-    // get regional spectral profile (statistics) data
-    bool GetRegionSpectralData(std::vector<std::vector<double>>& stats_values, int region_id, int profile_index, int profile_stokes,
-        const std::function<void(std::vector<std::vector<double>>, float)>& partial_results_callback);
+    // get region stats data
+    bool GetRegionSpectralData(int region_id, int config_stokes, int profile_stokes,
+        const std::function<void(std::map<CARTA::StatsType, std::vector<double>>, float)>& partial_results_callback);
 
     // Functions used to set cursor and region states
     void SetConnectionFlag(bool connected);
     void SetCursorXy(float x, float y);
-    void SetRegionState(int region_id, std::string name, CARTA::RegionType type, std::vector<CARTA::Point> points, float rotation);
-    void SetRegionSpectralRequests(int region_id, const std::vector<CARTA::SetSpectralRequirements_SpectralConfig>& profiles);
 
     // Functions used to check cursor and region states
     bool IsConnected(int region_id);
     bool IsSameRegionState(int region_id, const RegionState& region_state);
-    bool AreSameRegionSpectralRequests(int region_id, int profile_index, const std::vector<int>& requested_stats);
+    bool IsSameRegionSpectralConfig(int region_id, int profile_stokes, const SpectralConfig& start_config_stats, bool is_HDF5 = false);
 
     // setup
     uint32_t _session_id;
     bool _valid;
+    std::string _open_image_error;
 
     // spectral profile counter, which is used to determine whether the Frame object can be destroyed (_z_profile_count == 0 ?).
     tbb::atomic<int> _z_profile_count;
@@ -206,6 +255,9 @@ private:
     // Image settings
     ViewSettings _view_settings;
 
+    // Contour settings
+    ContourSettings _contour_settings;
+
     // Image data handling
     std::vector<float> _image_cache;    // image data for current channelIndex, stokesIndex
     tbb::queuing_rw_mutex _cache_mutex; // allow concurrent reads but lock for write
@@ -215,15 +267,12 @@ private:
     // Region
     std::unordered_map<int, std::unique_ptr<carta::Region>> _regions; // key is region ID
     bool _cursor_set;                                                 // cursor region set by frontend, not internally
+    // Current cursor's x-y coordinate
+    CursorXy _cursor_xy;
 
     // Communication
     volatile bool _connected = true;
-    // Current cursor's x-y coordinate
-    CursorXy _cursor_xy;
-    // Current region states
-    std::unordered_map<int, RegionState> _region_states;
-    // Current region configs
-    std::unordered_map<int, RegionRequest> _region_requests;
+    bool _verbose;
 };
 
 #endif // CARTA_BACKEND__FRAME_H_
