@@ -28,11 +28,12 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 FIND_PACKAGE(HDF5)
 FIND_PACKAGE(Protobuf REQUIRED)
 FIND_PACKAGE(Threads)
+FIND_PACKAGE(gRPC CONFIG REQUIRED)
 INCLUDE_DIRECTORIES(${HDF5_INCLUDE_DIR})
 
 ADD_SUBDIRECTORY(carta-protobuf)
+ADD_SUBDIRECTORY(cartavis)
 INCLUDE_DIRECTORIES(${CMAKE_CURRENT_BINARY_DIR})
-INCLUDE_DIRECTORIES(${CMAKE_CURRENT_BINARY_DIR}/ImageData)
 INCLUDE_DIRECTORIES(/usr/include/casacore)
 INCLUDE_DIRECTORIES(/usr/local/include/casacode)
 
@@ -48,11 +49,12 @@ if (AuthServer)
             DBConnect.cc)
 endif (AuthServer)
 
-
 set(LINK_LIBS
         ${LINK_LIBS}
         carta-protobuf
+        cartavis
         ${PROTOBUF_LIBRARY}
+        grpc++
         fmt
         uWS
         ssl
@@ -99,10 +101,11 @@ set(SOURCE_FILES
         Tile.cc
         Ds9Parser.cc
         Contouring.cc
-        Smoothing.cc)
+        Smoothing.cc
+        GrpcServer/CartaBackendService.cc)
 
 add_definitions(-DHAVE_HDF5)
-add_executable(carta_backend ${SOURCE_FILES})
+add_executable(carta_backend ${SOURCE_FILES} )
 if (${CMAKE_SYSTEM_NAME} MATCHES "Darwin")
     target_link_libraries(carta_backend uv ${LINK_LIBS})
 endif (${CMAKE_SYSTEM_NAME} MATCHES "Darwin")

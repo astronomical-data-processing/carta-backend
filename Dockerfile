@@ -39,7 +39,7 @@ RUN \
   cd /root && \
   git clone -q --recursive https://open-bitbucket.nrao.edu/scm/casa/carta-casacore.git && \
   mkdir -p carta-casacore/build && cd carta-casacore/build && \
-  cmake .. -DUSE_FFTW3=ON -DUSE_HDF5=ON -DUSE_THREADS=ON -DUSE_OPENMP=ON -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTING=OFF -DBoost_NO_BOOST_CMAKE=1 -DBUILD_PYTHON=OFF -DUseCcache=1 -DHAS_CXX11=1 -DDATA_DIR=/usr/local/share/casacore/data && \
+  cmake .. -DUSE_FFTW3=ON -DUSE_HDF5=ON -DUSE_THREADS=ON -DUSE_OPENMP=ON -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTING=OFF -DBoost_NO_BOOST_CMAKE=1 -DBUILD_PYTHON=OFF -DUseCcache=1 -DHAS_CXX11=1 -DgRPC_INSTALL=ON -DgRPC_BUILD_TESTS=OFF -DgRPC_PROTOBUF_PROVIDER=package -DgRPC_ZLIB_PROVIDER=package -DgRPC_CARES_PROVIDER=package -DgRPC_SSL_PROVIDER=package -DDATA_DIR=/usr/local/share/casacore/data && \
   make -j2 && make install && \
   cd /root && rm -rf carta-casacore
 

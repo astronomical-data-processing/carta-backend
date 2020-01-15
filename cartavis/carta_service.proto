@@ -1,0 +1,543 @@
+syntax = "proto3";
+
+import "google/protobuf/empty.proto";
+// import "google/protobuf/wrappers.proto";
+
+package CARTAVIS;
+
+// Because of the way python generates the required files,
+// imports cannot easily be used using the model of
+// plotmstool.py . So, if we are to use that model, all
+// proto defs that would otherwise rely on imports have
+// to be in monolithic files
+
+//import "register_viewer.proto";
+
+// The greeting service definition.
+service CartaBackend {
+ 
+  // add required tiles
+  // rpc addRequiredTiles(AddRequiredTiles) returns (google.protobuf.Empty) {}
+ 
+  // close the specified file
+  rpc closeFile(CloseFile) returns (google.protobuf.Empty) {}
+
+  // connect to existant session
+  rpc connectToSession(ConnectToSession) returns (ConnectToSessionAck) {}
+
+  // disconnect from session
+  rpc disconnectFromSession(DisconnectFromSession) returns (google.protobuf.Empty) {}
+
+  // Get rendered image as a base64 string that can be converted to PNG
+  rpc getRenderedImage(GetRenderedImage) returns (GetRenderedImageAck) {}
+
+  // open the specified file
+  rpc openFile(OpenFile) returns (OpenFileAck) {}
+  
+  // register service
+  // rpc registerViewer(RegisterViewer) returns (RegisterViewerAck) {}
+  
+  // request that the current view be saved as an image file, such as PNG,
+  // on the front end machine
+  rpc savePlot(SavePlot) returns (SavePlotAck) {}
+ 
+  // set the specified image colormap
+  rpc setColorMap(SetColorMap) returns (google.protobuf.Empty) {}
+
+  // set the specified coordinate system
+  rpc setCoordinateSystem(SetCoordinateSystem) returns (google.protobuf.Empty) {}
+
+  // set the specified image channel/stokes
+  rpc setImageChannels(SetImageChannels) returns (google.protobuf.Empty) {}
+
+  // set the specified image view
+  rpc setImageView(SetImageView) returns (google.protobuf.Empty) {}
+   
+  // show grid lines?
+  rpc showGrid(ShowGrid) returns (google.protobuf.Empty) {}
+
+  // set user preferences
+  // rpc setUserLayout(SetUserLayout) returns (SetUserLayoutAck) {}
+   
+  // set user preferences
+  // rpc setUserPreferences(SetUserPreferences) returns (SetUserPreferencesAck) {}
+}
+
+// MESSAGES
+
+// ADD_REQUIRED_TILES
+// Provides a list of tiles that are required for the specified file
+message AddRequiredTiles {
+    // The file ID that the view corresponds to
+    sfixed32 file_id = 1;
+    // The list of tiles required, in encoded coordinate
+    repeated sfixed32 tiles = 2;
+    // The compression algorithm used
+    CompressionType compression_type = 3;
+    // Compression quality switch
+    float compression_quality = 4;
+}
+
+// CLOSE_FILE:
+// Instructs the backend to close a file with a given file ID
+message CloseFile {
+    // Which "file" slot to close
+    sfixed32 file_id = 1;
+}
+
+// CONNECT_TO_SESSION:
+// Requests a connection to a specific session.
+// Responds with CONNECT_TO_SESSION_ACK
+message ConnectToSession {
+    // Active session ID
+    fixed32 session_id = 1;
+    // Optional client-specific API key to be used for basic authentication.
+    // Currently hard-coded in python.
+    string api_key = 2;
+    // Optional feature bitflag specifying client-side feature set.
+    fixed32 client_feature_flags = 3;
+}
+
+// DISCONNECT_FROM_SESSION:
+// Notifies the server that the client is disconnecting
+message DisconnectFromSession {
+    // Active session ID
+    fixed32 session_id = 1;
+}
+
+// CONNECT_TO_SESSION_ACK
+// Acknowledgement response for CONNECT_TO_SESSION.
+// Informs the client if the request was granted.
+message ConnectToSessionAck {
+    // Defines if the request was successful
+    bool success = 1;
+    // Error message (if applicable)
+    string message = 2;
+    // Optional feature bitflag specifying server-side feature set
+    fixed32 server_feature_flags = 3;
+}
+
+// File info message structure (internal use only)
+message FileInfo {
+    string name = 1;
+    FileType type = 2;
+    sfixed64 size = 3;
+    repeated string HDU_list = 4;
+}
+
+message FileInfoExtended {
+    // Number of dimensions of the image file
+    sfixed32 dimensions = 1;
+    // Width of the XY plane
+    sfixed32 width = 2;
+    // Height of the XY plane
+    sfixed32 height = 3;
+    // Number of channels
+    sfixed32 depth = 4;
+    // Number of Stokes parameters
+    sfixed32 stokes = 5;
+    // List of Stokes parameters contained in the file (if applicable). For files that do not explicitly specify Stokes files, this will be blank.
+    repeated string stokes_vals = 6;
+    // Header entries from header string or attributes
+    repeated HeaderEntry header_entries = 7;
+    repeated HeaderEntry computed_entries = 8;
+}
+
+message GetRenderedImage {
+    // The file ID of the view to retrieve
+    sfixed32 file_id = 1;   
+}
+
+message GetRenderedImageAck {
+    // base64 encoded view
+    string base64 = 1;
+}
+
+message HeaderEntry {
+    string name = 1;
+    string value = 2;
+    EntryType entry_type = 3;
+    double numeric_value = 4;
+}
+
+message ImageBounds {
+    sfixed32 x_min = 1;
+    sfixed32 x_max = 2;
+    sfixed32 y_min = 3;
+    sfixed32 y_max = 4;
+}
+
+// OPEN_FILE:
+// Requests the opening of a specific file
+// Backend responds with  OPEN_FILE_ACK
+message OpenFile {
+    // Required directory name
+    string directory = 1;
+    // Required file name
+    string file = 2;
+    // Which HDU to load (if applicable). If left blank, the first HDU will be used
+    string hdu = 3;
+    // Which "file" slot to load the file into (when viewing multiple files)
+    sfixed32 file_id = 4;
+    // The render mode to use. Additional modes will be added in subsequent versions.
+    RenderMode render_mode = 5;
+}
+
+// OPEN_FILE_ACK
+// Response for OPEN_FILE. Also supplies file information
+message OpenFileAck {
+    // Defines whether OPEN_FILE was successful
+    bool success = 1;
+    // Which file slot the file was loaded into (when viewing multiple files)
+    sfixed32 file_id = 2;
+    // Error message (if applicable)
+    string message = 3;
+    // Basic file info (type, size)
+    FileInfo file_info = 4;
+    // Extended file info (WCS, header info)
+    FileInfoExtended file_info_extended = 5;
+    // Optional bitflags specifying feature flags of the file being opened.
+    fixed32 file_feature_flags = 6;
+}
+
+
+
+// REGISTER_VIEWER:
+// Registers the viewer with the backend.
+// Responds with REGISTER_VIEWER_ACK
+message RegisterViewer {
+    // Unique session ID parameter (can be generated using UUID libraries).
+    // Passing in an existing session ID can be used for resuming sessions
+    fixed32 session_id = 1;
+    // Optional user-specific API key to be used for basic authentication.
+    // Could be an encrypted JWT for secure authentication.
+    string api_key = 2;
+    // Optional feature bitflag specifying client-side feature set
+    fixed32 client_feature_flags = 3;
+}
+
+// REGISTER_VIEWER_ACK
+// Acknowledgement response for REGISTER_VIEWER.
+// Informs the frontend whether the session was correctly.
+message RegisterViewerAck {
+    // Unique session ID
+    fixed32 session_id = 1;
+    // Defines whether the REGISTER_VIEWER command was successful
+    bool success = 2;
+    // Error message (if applicable)
+    string message = 3;
+    // Defines the type of session established
+    SessionType session_type = 4;
+    // Optional feature bitflag specifying server-side feature set
+    fixed32 server_feature_flags = 5;
+}
+
+// Requests that a PNG etc file be saved on the front end machine
+message SavePlot {
+    // The file ID to save
+    sfixed32 file_id = 1;
+}
+
+message SavePlotAck {
+    // Success of SAVE_FILE
+    bool success = 1;
+    // error message (if applicable)
+    string message = 2;
+    // the file name on the front end machine
+    // to which the plot was saved
+    string file_name = 3;
+}
+
+
+
+// Requests that the specified colormap be rendered
+message SetColorMap {
+    // The file ID to which the colormap corresponds
+    sfixed32 file_id = 1;
+    // The colormap
+    ColorMap colormap = 2;
+}   
+
+// SET_IMAGE_VIEW
+// Sets the current image view position in image space coordinates
+message SetImageView {
+    // The file ID that the view corresponds to
+    sfixed32 file_id = 1;
+    // The XY bounds corresponding to the image data in pixel coordinates
+    ImageBounds image_bounds = 2;
+    // The mip level used. The mip level defines how many image pixels correspond to the downsampled image.
+    // Only applicable for raster images
+    fixed32 mip = 3;
+    // The compression algorithm used. Additional compression types may be introduced
+    // if we allow the compression library to vary the algorithm details. For example, ZFP has modes of
+    // bounding the compression artifacts. Only applicable for raster images
+    CompressionType compression_type = 4;
+    // Compression quality switch. Only applicable for compressed raster images
+    float compression_quality = 5;
+    // The number of subsets that the data is broken into (for multithreaded compression/decompression).
+    // Only applicable for compressed raster images.
+    fixed32 num_subsets = 6;
+}
+
+// added by dmehring since I didn't see anything analogous in carta-protobuf
+// Sets (or clears) the user layout
+message SetUserLayout {
+    // Name of the layout to update. If no layout with the given name is present
+    // in the server database, a new layout is created
+    string name = 1;
+    // JSON string representing the layout. If the value is empty, the user
+    // layout is cleared from the server database.
+    string value = 2;
+}
+
+// SET_USER_LAYOUT_ACK
+// added by dmehring since I didn't see anything analogous in carta-protobuf
+// Acknowledgement response for SET_USER_LAYOUT.
+message SetUserLayoutAck {
+    // Defines whether the SET_USER_PREFERENCES_ACK command was successful
+    bool success = 1;
+    // Error message (if applicable)
+    string message = 2;
+}
+
+// SET_USER_PREFERENCES
+// added by dmehring since I didn't see anything analogous in carta-protobuf
+// Sets the user preferences
+message SetUserPreferences {
+    // key-value map of the preferences
+    map<string, string> preferences = 1;
+}
+
+// SET_USER_PREFERENCES_ACK
+// added by dmehring since I didn't see anything analogous in carta-protobuf
+// Acknowledgement response for SET_USER_PREFERENCES.
+message SetUserPreferencesAck {
+    // Defines whether the SET_USER_PREFERENCES_ACK command was successful
+    bool success = 1;
+    // Error message (if applicable)
+    string message = 2;
+}
+
+// SET_IMAGE_CHANNELS
+// Sets the current image channel and Stokes parameter
+message SetImageChannels {
+    // The file ID that the view corresponds to
+    sfixed32 file_id = 1;
+    // The image channel (Z-coordinate)
+    sfixed32 channel = 2;
+    // The image stokes parameter
+    sfixed32 stokes = 3;
+    // Required tiles when changing channels
+    AddRequiredTiles required_tiles = 4;
+}
+
+// SHOW_GRID
+// Requests to show grid lines or not.
+message ShowGrid {
+    // The file ID for the view
+    sfixed32 file_id = 1;
+    // indicates if the grid should be displayed
+    bool show_grid = 2;
+}
+
+message SetCoordinateSystem {
+    // The file ID for the view
+    sfixed32 file_id = 1;
+    // direction reference frame
+    DirectionRefFrame direction_ref_frame = 2;
+}
+
+// ENUMS
+
+enum ColorMap {
+    AFMHOT = 0;
+    BLUES = 1;
+    COOLWARM = 2;
+    CUBEHELIX = 3;
+    GIST_HEAT = 4;
+    GIST_STERN = 5;
+    GNUPLOT = 6;
+    GNUPLOT2 = 7;
+    GRAY = 8;
+    GREENS = 9;
+    GREYS = 10;
+    HOT = 11;
+    INFERNO = 12;
+    JET = 13;
+    MAGMA = 14;
+    NIPY_SPECTRAL = 15;
+    PLASMA = 16;
+    RAINBOW = 17;
+    RDBU = 18;
+    RDGY = 19;
+    REDS = 20;
+    SEISMIC = 21;
+    SPECTRAL = 22;
+    TAB10 = 23;
+    VIRDIS = 24;
+}
+
+enum DirectionRefFrame {
+    AUTO = 0;
+    ECLIPTIC = 1;
+    FK4 = 2;
+    FK5 = 3;
+    GALACTIC = 4;
+    ICRS = 5;
+}
+
+enum EventType {
+    EMPTY_EVENT = 0;
+    REGISTER_VIEWER = 1;
+    FILE_LIST_REQUEST = 2;
+    FILE_INFO_REQUEST = 3;
+    OPEN_FILE = 4;
+    SET_IMAGE_VIEW = 5;
+    SET_IMAGE_CHANNELS = 6;
+    SET_CURSOR = 7;
+    SET_SPATIAL_REQUIREMENTS = 8;
+    SET_HISTOGRAM_REQUIREMENTS = 9;
+    SET_STATS_REQUIREMENTS = 10;
+    SET_REGION = 11;
+    REMOVE_REGION = 12;
+    CLOSE_FILE = 13;
+    SET_SPECTRAL_REQUIREMENTS = 14;
+    START_ANIMATION = 15;
+    START_ANIMATION_ACK = 16;
+    STOP_ANIMATION = 17;
+    REGISTER_VIEWER_ACK = 18;
+    FILE_LIST_RESPONSE = 19;
+    FILE_INFO_RESPONSE = 20;
+    OPEN_FILE_ACK = 21;
+    SET_REGION_ACK = 22;
+    REGION_HISTOGRAM_DATA = 23;
+    RASTER_IMAGE_DATA = 24;
+    SPATIAL_PROFILE_DATA = 25;
+    SPECTRAL_PROFILE_DATA = 26;
+    REGION_STATS_DATA = 27;
+    ERROR_DATA = 28;
+    ANIMATION_FLOW_CONTROL = 29;
+    ADD_REQUIRED_TILES = 30;
+    REMOVE_REQUIRED_TILES = 31;
+    RASTER_TILE_DATA = 32;
+    REGION_LIST_REQUEST = 33;
+    REGION_LIST_RESPONSE = 34;
+    REGION_FILE_INFO_REQUEST = 35;
+    REGION_FILE_INFO_RESPONSE = 36;
+    IMPORT_REGION = 37;
+    IMPORT_REGION_ACK = 38;
+    EXPORT_REGION = 39;
+    EXPORT_REGION_ACK = 40;
+}
+
+enum SessionType {
+    NEW = 0;
+    RESUMED = 1;
+}
+
+enum FileType {
+    FITS = 0;
+    CASA = 1;
+    HDF5 = 2;
+    MIRIAD = 3;
+    REG = 4;
+    CRTF = 5;
+    UNKNOWN = 6;
+}
+
+enum RenderMode {
+    RASTER = 0;
+    CONTOUR = 1;
+}
+
+enum CompressionType {
+    NONE = 0;
+    ZFP = 1;
+    SZ = 2;
+}
+
+enum RegionType {
+    POINT = 0;
+    LINE = 1;
+    POLYLINE = 2;
+    RECTANGLE = 3;
+    ELLIPSE = 4;
+    ANNULUS = 5;
+    POLYGON = 6;
+}
+
+enum ContourMode {
+    ORIGINAL = 0;
+    GAUSSIANBLUR_3 = 1;
+    GAUSSIANBLUR_5 = 2;
+    BOXBLUR_3 = 3;
+    BOXBLUR_5 = 4;
+}
+
+enum StatsType {
+    NumPixels = 0;
+    NanCount = 1;
+    Sum = 2;
+    FluxDensity = 3;
+    Mean = 4;
+    RMS = 5;
+    Sigma = 6;
+    SumSq = 7;
+    Min = 8;
+    Max = 9;
+    Blc = 10;
+    Trc = 11;
+    MinPos = 12;
+    MaxPos = 13;
+    Blcf = 14;
+    Trcf =  15;
+    MinPosf = 16;
+    MaxPosf = 17;
+}
+
+enum ErrorSeverity {
+    DEBUG = 0;
+    INFO = 1;
+    WARNING = 2;
+    ERROR = 3;
+    CRITICAL = 4;
+}
+
+enum EntryType {
+    STRING = 0;
+    FLOAT = 1;
+    INT = 2;
+}
+
+enum ClientFeatureFlags {
+    CLIENT_FEATURE_NONE = 0;
+    WEB_GL = 1;
+    WEB_GL_2 = 2;
+    WEB_ASSEMBLY = 4;
+    WEB_ASSEMBLY_THREADS = 8;
+    OFFSCREEN_CANVAS = 16;
+}
+
+enum ServerFeatureFlags {
+    SERVER_FEATURE_NONE = 0;
+    SZ_COMPRESSION = 1;
+    HEVC_COMPRESSION = 2;
+    NVENC_COMPRESSION = 4;
+}
+
+enum FileFeatureFlags {
+    FILE_FEATURE_NONE = 0;
+    ROTATED_DATASET = 1;
+    CHANNEL_HISTOGRAMS = 2;
+    CUBE_HISTOGRAMS = 4;
+    CHANNEL_STATS = 8;
+    MEAN_IMAGE = 16;
+    MIP_DATASET = 32;
+}
+
+enum CoordinateType {
+    PIXEL = 0;
+    WORLD = 1;
+}
+
+
