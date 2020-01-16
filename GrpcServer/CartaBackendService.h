@@ -6,13 +6,19 @@
 #include <grpc++/grpc++.h>
 
 #include <cartavis/carta_service.grpc.pb.h>
+#include "../Session.h"
 
 class CartaBackendService : public CARTAVIS::CartaBackend::Service {
-
 public:
-    grpc::Status connectToSession(grpc::ServerContext* context, const CARTAVIS::ConnectToSession* request, CARTAVIS::ConnectToSessionAck* reply);
+    CartaBackendService(bool verbose);
+    void AddSession(Session* session);
+    void RemoveSession(Session* session);
 
-    grpc::Status disconnectFromSession(grpc::ServerContext* context, const CARTAVIS::DisconnectFromSession* request, google::protobuf::Empty*);
+    grpc::Status connectToSession(
+        grpc::ServerContext* context, const CARTAVIS::ConnectToSession* request, CARTAVIS::ConnectToSessionAck* reply);
+
+    grpc::Status disconnectFromSession(
+        grpc::ServerContext* context, const CARTAVIS::DisconnectFromSession* request, google::protobuf::Empty*);
 
     grpc::Status openFile(grpc::ServerContext* context, const CARTAVIS::OpenFile* request, CARTAVIS::OpenFileAck* reply);
 
@@ -28,9 +34,16 @@ public:
 
     grpc::Status showGrid(grpc::ServerContext* context, const CARTAVIS::ShowGrid* request, google::protobuf::Empty*);
 
-    grpc::Status getRenderedImage(grpc::ServerContext* context, const CARTAVIS::GetRenderedImage* request, CARTAVIS::GetRenderedImageAck* reply);
+    grpc::Status getRenderedImage(
+        grpc::ServerContext* context, const CARTAVIS::GetRenderedImage* request, CARTAVIS::GetRenderedImageAck* reply);
 
     grpc::Status savePlot(grpc::ServerContext* context, const CARTAVIS::SavePlot* request, CARTAVIS::SavePlotAck* reply);
+
+private:
+    bool _verbose;
+
+    // Map session_id to Session*, connected
+    std::unordered_map<int, std::pair<Session*, bool>> _sessions;
 };
 
-#endif //CARTA_BACKEND_GRPCSERVER_CARTABACKENDSERVICE_H_
+#endif // CARTA_BACKEND_GRPCSERVER_CARTABACKENDSERVICE_H_
