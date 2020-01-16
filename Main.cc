@@ -25,7 +25,7 @@
 #include "EventHeader.h"
 #include "FileList/FileListHandler.h"
 #include "FileSettings.h"
-#include "GrpcServer/CartaBackendService.h"
+#include "GrpcServer/CartaGrpcService.h"
 #include "OnMessageTask.h"
 #include "Session.h"
 #include "Util.h"
@@ -49,7 +49,7 @@ static uWS::Hub websocket_hub;
 static uint32_t session_number;
 
 // grpc server for scripting client
-static CartaBackendService* carta_grpc_service;
+static CartaGrpcService* carta_grpc_service;
 static std::unique_ptr<grpc::Server> carta_grpc_server;
 
 // command-line arguments
@@ -363,7 +363,7 @@ bool StartGrpcService(int grpc_port) {
     builder.AddListeningPort(server_address, grpc::InsecureServerCredentials(), &selected_port);
 
     // Register and start carta grpc server
-    carta_grpc_service = new CartaBackendService(verbose);
+    carta_grpc_service = new CartaGrpcService(verbose);
     builder.RegisterService(carta_grpc_service);
     carta_grpc_server = builder.BuildAndStart();
     if (selected_port > 0) { // available port found

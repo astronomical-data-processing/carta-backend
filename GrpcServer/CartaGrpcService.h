@@ -1,16 +1,16 @@
-//# CartaBackendService.h: server for a grpc client
+//# CartaGrpcService.h: service for a grpc client
 
-#ifndef CARTA_BACKEND_GRPCSERVER_CARTABACKENDSERVICE_H_
-#define CARTA_BACKEND_GRPCSERVER_CARTABACKENDSERVICE_H_
+#ifndef CARTA_BACKEND_GRPCSERVER_CARTAGRPCSERVICE_H_
+#define CARTA_BACKEND_GRPCSERVER_CARTAGRPCSERVICE_H_
 
 #include <grpc++/grpc++.h>
 
 #include <cartavis/carta_service.grpc.pb.h>
 #include "../Session.h"
 
-class CartaBackendService : public CARTAVIS::CartaBackend::Service {
+class CartaGrpcService : public CARTAVIS::CartaBackend::Service {
 public:
-    CartaBackendService(bool verbose);
+    CartaGrpcService(bool verbose);
     void AddSession(Session* session);
     void RemoveSession(Session* session);
 
@@ -40,10 +40,11 @@ public:
     grpc::Status savePlot(grpc::ServerContext* context, const CARTAVIS::SavePlot* request, CARTAVIS::SavePlotAck* reply);
 
 private:
-    bool _verbose;
+    bool CheckSessionId(uint32_t id, const std::string& command, std::string& message);
 
+    bool _verbose;
     // Map session_id to Session*, connected
     std::unordered_map<int, std::pair<Session*, bool>> _sessions;
 };
 
-#endif // CARTA_BACKEND_GRPCSERVER_CARTABACKENDSERVICE_H_
+#endif // CARTA_BACKEND_GRPCSERVER_CARTAGRPCSERVICE_H_

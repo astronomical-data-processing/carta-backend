@@ -175,12 +175,14 @@ message OpenFile {
     string directory = 1;
     // Required file name
     string file = 2;
+    // session ID to which to associate the open file
+    sfixed32 session_id = 3;
     // Which HDU to load (if applicable). If left blank, the first HDU will be used
-    string hdu = 3;
+    string hdu = 4;
     // Which "file" slot to load the file into (when viewing multiple files)
-    sfixed32 file_id = 4;
+    sfixed32 file_id = 5;
     // The render mode to use. Additional modes will be added in subsequent versions.
-    RenderMode render_mode = 5;
+    RenderMode render_mode = 6;
 }
 
 // OPEN_FILE_ACK

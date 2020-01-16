@@ -102,7 +102,7 @@ set(SOURCE_FILES
         Ds9Parser.cc
         Contouring.cc
         Smoothing.cc
-        GrpcServer/CartaBackendService.cc)
+        GrpcServer/CartaGrpcService.cc)
 
 add_definitions(-DHAVE_HDF5)
 add_executable(carta_backend ${SOURCE_FILES} )

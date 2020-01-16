@@ -1,17 +1,17 @@
-//# CartaBackendService.cc: grpc server to receive messages from the python scripting client
+//# CartaGrpcService.cc: grpc server to receive messages from the python scripting client
 
-#include "CartaBackendService.h"
+#include "CartaGrpcService.h"
 
-CartaBackendService::CartaBackendService(bool verbose) : _verbose(verbose) {}
+CartaGrpcService::CartaGrpcService(bool verbose) : _verbose(verbose) {}
 
-void CartaBackendService::AddSession(Session* session) {
+void CartaGrpcService::AddSession(Session* session) {
     // Associate Session with its id
     uint32_t id = session->GetId();
     std::pair<Session*, bool> session_info(session, false);
     _sessions[id] = session_info;
 }
 
-void CartaBackendService::RemoveSession(Session* session) {
+void CartaGrpcService::RemoveSession(Session* session) {
     // Remove Session from map
     uint32_t id = session->GetId();
     if (_sessions.count(id)) {
@@ -19,7 +19,19 @@ void CartaBackendService::RemoveSession(Session* session) {
     }
 }
 
-grpc::Status CartaBackendService::connectToSession(
+bool CartaGrpcService::CheckSessionId(uint32_t id, const std::string& command, std::string& message) {
+    bool id_ok(true);
+    if (!_sessions.count(id)) {
+        message = fmt::format("{} failed: Session {} does not exist", command, id);
+        id_ok = false;
+    } else if (!_sessions[id].second) {
+        message = fmt::format("{} failed: Session {} is not connected", command, id);
+        id_ok = false;
+    }
+    return id_ok;
+}
+
+grpc::Status CartaGrpcService::connectToSession(
     grpc::ServerContext* context, const CARTAVIS::ConnectToSession* request, CARTAVIS::ConnectToSessionAck* reply) {
     uint32_t id = request->session_id();
     if (_verbose) {
@@ -36,7 +48,7 @@ grpc::Status CartaBackendService::connectToSession(
     return grpc::Status::OK;
 }
 
-grpc::Status CartaBackendService::disconnectFromSession(
+grpc::Status CartaGrpcService::disconnectFromSession(
     grpc::ServerContext* context, const CARTAVIS::DisconnectFromSession* request, google::protobuf::Empty*) {
     uint32_t id = request->session_id();
     if (_verbose) {
@@ -48,29 +60,38 @@ grpc::Status CartaBackendService::disconnectFromSession(
     return grpc::Status::OK;
 }
 
-grpc::Status CartaBackendService::openFile(grpc::ServerContext* context, const CARTAVIS::OpenFile* request, CARTAVIS::OpenFileAck* reply) {
+grpc::Status CartaGrpcService::openFile(grpc::ServerContext* context, const CARTAVIS::OpenFile* request, CARTAVIS::OpenFileAck* reply) {
     if (_verbose) {
         std::cout << "GRPC_DEBUG: received openFile" << std::endl;
     }
+
+    uint32_t id = request->session_id();
+    std::string message;
+    if (CheckSessionId(id, "open_file", message)) {
+        // call session method
+    } else {
+        reply->set_success(false);
+        reply->set_message(message);
+    }
+
     return grpc::Status::OK;
 }
 
-grpc::Status CartaBackendService::closeFile(grpc::ServerContext* context, const CARTAVIS::CloseFile* request, google::protobuf::Empty*) {
+grpc::Status CartaGrpcService::closeFile(grpc::ServerContext* context, const CARTAVIS::CloseFile* request, google::protobuf::Empty*) {
     if (_verbose) {
         std::cout << "GRPC_DEBUG: received closeFile" << std::endl;
     }
     return grpc::Status::OK;
 }
 
-grpc::Status CartaBackendService::setColorMap(
-    grpc::ServerContext* context, const CARTAVIS::SetColorMap* request, google::protobuf::Empty*) {
+grpc::Status CartaGrpcService::setColorMap(grpc::ServerContext* context, const CARTAVIS::SetColorMap* request, google::protobuf::Empty*) {
     if (_verbose) {
         std::cout << "GRPC_DEBUG: received setColorMap" << std::endl;
     }
     return grpc::Status::OK;
 }
 
-grpc::Status CartaBackendService::setCoordinateSystem(
+grpc::Status CartaGrpcService::setCoordinateSystem(
     grpc::ServerContext* context, const CARTAVIS::SetCoordinateSystem* request, google::protobuf::Empty*) {
     if (_verbose) {
         std::cout << "GRPC_DEBUG: received setCooordinateSystem" << std::endl;
@@ -78,7 +99,7 @@ grpc::Status CartaBackendService::setCoordinateSystem(
     return grpc::Status::OK;
 }
 
-grpc::Status CartaBackendService::setImageChannels(
+grpc::Status CartaGrpcService::setImageChannels(
     grpc::ServerContext* context, const CARTAVIS::SetImageChannels* request, google::protobuf::Empty*) {
     if (_verbose) {
         std::cout << "GRPC_DEBUG: received setImageChannels" << std::endl;
@@ -86,22 +107,21 @@ grpc::Status CartaBackendService::setImageChannels(
     return grpc::Status::OK;
 }
 
-grpc::Status CartaBackendService::setImageView(
-    grpc::ServerContext* context, const CARTAVIS::SetImageView* request, google::protobuf::Empty*) {
+grpc::Status CartaGrpcService::setImageView(grpc::ServerContext* context, const CARTAVIS::SetImageView* request, google::protobuf::Empty*) {
     if (_verbose) {
         std::cout << "GRPC_DEBUG: received setImageView" << std::endl;
     }
     return grpc::Status::OK;
 }
 
-grpc::Status CartaBackendService::showGrid(grpc::ServerContext* context, const CARTAVIS::ShowGrid* request, google::protobuf::Empty*) {
+grpc::Status CartaGrpcService::showGrid(grpc::ServerContext* context, const CARTAVIS::ShowGrid* request, google::protobuf::Empty*) {
     if (_verbose) {
         std::cout << "GRPC_DEBUG: received showGrid" << std::endl;
     }
     return grpc::Status::OK;
 }
 
-grpc::Status CartaBackendService::getRenderedImage(
+grpc::Status CartaGrpcService::getRenderedImage(
     grpc::ServerContext* context, const CARTAVIS::GetRenderedImage* request, CARTAVIS::GetRenderedImageAck* reply) {
     if (_verbose) {
         std::cout << "GRPC_DEBUG: received getRenderedImage" << std::endl;
@@ -109,7 +129,7 @@ grpc::Status CartaBackendService::getRenderedImage(
     return grpc::Status::OK;
 }
 
-grpc::Status CartaBackendService::savePlot(grpc::ServerContext* context, const CARTAVIS::SavePlot* request, CARTAVIS::SavePlotAck* reply) {
+grpc::Status CartaGrpcService::savePlot(grpc::ServerContext* context, const CARTAVIS::SavePlot* request, CARTAVIS::SavePlotAck* reply) {
     if (_verbose) {
         std::cout << "GRPC_DEBUG: received savePlot" << std::endl;
     }
