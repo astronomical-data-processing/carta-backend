@@ -34,7 +34,12 @@ ADD_SUBDIRECTORY(carta-protobuf)
 INCLUDE_DIRECTORIES(${CMAKE_CURRENT_BINARY_DIR})
 INCLUDE_DIRECTORIES(${CMAKE_CURRENT_BINARY_DIR}/ImageData)
 INCLUDE_DIRECTORIES(/usr/include/casacore)
-INCLUDE_DIRECTORIES(/usr/local/include/casacode)
+if (${CMAKE_SYSTEM_NAME} MATCHES "Darwin")
+    INCLUDE_DIRECTORIES(/usr/local/include/casacode)
+endif (${CMAKE_SYSTEM_NAME} MATCHES "Darwin")
+if (${CMAKE_SYSTEM_NAME} MATCHES "Linux")
+    INCLUDE_DIRECTORIES(/usr/include/casacode)
+endif (${CMAKE_SYSTEM_NAME} MATCHES "Linux")
 
 if (AuthServer)
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -D_AUTH_SERVER_")
@@ -116,11 +121,15 @@ if (test)
     enable_testing()
     find_package(GTest)
     include_directories(${GTEST_INCLUDE_DIRS} ${CMAKE_SOURCE_DIR})
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -D_UNIT_TEST_")
 
     add_executable(testTileEncoding test/TestTileEncoding.cc)
     target_link_libraries(testTileEncoding gtest gtest_main Threads::Threads fmt)
-
     add_test(NAME TestTileEncoding COMMAND testTileEncoding)
+    
+    add_executable(testTileCache TileCache.cc ImageData/FileLoader.cc ImageData/Hdf5Loader.cc Frame.cc test/TestTileCache.cc)
+    target_link_libraries(testTileCache gtest gtest_main ${LINK_LIBS})
+    add_test(NAME TestTileCache COMMAND testTileCache)
 endif (test)
 
 # Install executable

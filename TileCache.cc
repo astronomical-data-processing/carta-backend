@@ -78,7 +78,7 @@ bool TileCache::GetMultiple(std::unordered_map<Key, std::vector<float>>& tiles, 
     return valid;
 }
 
-void TileCache::Reset(int32_t channel, int32_t stokes, int capacity) {
+void TileCache::Reset(int channel, int stokes, int capacity) {
     std::unique_lock<std::mutex> guard(_tile_cache_mutex);
     if (capacity > 0) {
         _capacity = capacity;
