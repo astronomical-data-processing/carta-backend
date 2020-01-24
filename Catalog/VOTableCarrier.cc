@@ -2,6 +2,7 @@
 
 #include <cassert>
 #include <set>
+#include <algorithm>
 
 using namespace catalog;
 

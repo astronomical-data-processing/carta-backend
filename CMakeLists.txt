@@ -73,7 +73,7 @@ set(LINK_LIBS
         casa_measures
         casa_mirlib
         casa_scimath
-        casa_imageanalysis
+        casa_casa_casa_imageanalysis
         ${HDF5_LIBRARIES}
         ${LIBXML2_LIBRARIES}
         ${CMAKE_THREAD_LIBS_INIT})
