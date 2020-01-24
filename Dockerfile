@@ -81,27 +81,3 @@ WORKDIR /root
 
 # overwrite this with 'CMD []' in a dependent Dockerfile
 CMD ["bash"]
-
-
-# Build carta-backend
-#
-# The sed -i -e 's/imageanalysis/casa_imageanalysis/g' CMakeLists.txt line can be removed
-# after the CMakeLists.txt in the carta-backend repository is updated.
-#  
-
-# RUN \
-#   git clone https://github.com/CARTAvis/carta-backend.git && \
-#   cd carta-backend && \
-#   git submodule init && git submodule update && \
-#   sed -i -e 's/imageanalysis/casa_imageanalysis/g' CMakeLists.txt && \ 
-#   mkdir build && cd build && \
-#   cmake .. -DCMAKE_CXX_FLAGS="-I/usr/local/include/casacode -I/usr/local/include/casacore" -DCMAKE_CXX_STANDARD_LIBRARIES="-L/usr/local/lib -lcasa_imageanalysis" && \
-#   make
-# EXPOSE 3002
-# ENV HOME /root
-# # Required for running the backend
-# ENV LD_LIBRARY_PATH /usr/local/lib
-# ENV CASAPATH "/usr/local/share/casacore linux local `hostname`"
-# WORKDIR /root
-# # overwrite this with 'CMD []' in a dependent Dockerfile
-# CMD ["bash"]
