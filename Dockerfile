@@ -7,7 +7,7 @@ RUN \
   apt-get install -y bison build-essential byobu cmake curl default-jre emacs \
     fftw3-dev flex gdb gcc gfortran git git-lfs htop libblas-dev \
     libcfitsio-dev libfmt-dev libgtest-dev libhdf5-dev liblapack-dev libncurses-dev \
-    libprotobuf-dev libreadline-dev libssl-dev libstarlink-ast-dev libtbb-dev libzstd-dev libxml2-dev\
+    libprotobuf-dev libreadline-dev libssl-dev libstarlink-ast-dev libtbb-dev libzstd-dev libxml2-dev \
     libgsl-dev man protobuf-compiler python-pip python3-pip software-properties-common \
     unzip vim wcslib-dev wget
 
@@ -61,7 +61,7 @@ RUN \
 
 # Build carta-backend
 RUN \
-  git clone -b mark/catalog https://github.com/CARTAvis/carta-backend.git && \
+  git clone https://github.com/CARTAvis/carta-backend.git && \
   cd carta-backend && \
   git submodule init && git submodule update && \
   mkdir build && cd build && \
@@ -81,3 +81,27 @@ WORKDIR /root
 
 # overwrite this with 'CMD []' in a dependent Dockerfile
 CMD ["bash"]
+
+
+# Build carta-backend
+#
+# The sed -i -e 's/imageanalysis/casa_imageanalysis/g' CMakeLists.txt line can be removed
+# after the CMakeLists.txt in the carta-backend repository is updated.
+#  
+
+# RUN \
+#   git clone https://github.com/CARTAvis/carta-backend.git && \
+#   cd carta-backend && \
+#   git submodule init && git submodule update && \
+#   sed -i -e 's/imageanalysis/casa_imageanalysis/g' CMakeLists.txt && \ 
+#   mkdir build && cd build && \
+#   cmake .. -DCMAKE_CXX_FLAGS="-I/usr/local/include/casacode -I/usr/local/include/casacore" -DCMAKE_CXX_STANDARD_LIBRARIES="-L/usr/local/lib -lcasa_imageanalysis" && \
+#   make
+# EXPOSE 3002
+# ENV HOME /root
+# # Required for running the backend
+# ENV LD_LIBRARY_PATH /usr/local/lib
+# ENV CASAPATH "/usr/local/share/casacore linux local `hostname`"
+# WORKDIR /root
+# # overwrite this with 'CMD []' in a dependent Dockerfile
+# CMD ["bash"]
