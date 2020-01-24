@@ -45,7 +45,8 @@ if (AuthServer)
     set(LINK_LIBS
             jsoncpp
             mongoc-1.0
-            bson-1.0)
+            bson-1.0
+            json-c)
     set(SOURCE_FILES
             DBConnect.cc)
 endif (AuthServer)
@@ -63,7 +64,6 @@ set(LINK_LIBS
         zfp
         zstd
         tbb
-        json-c
         casa_casa
         casa_coordinates
         casa_tables

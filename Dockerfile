@@ -68,6 +68,10 @@ RUN \
   cmake .. -DCMAKE_CXX_FLAGS="-I/usr/local/include/casacode -I/usr/local/include/casacore" -DCMAKE_CXX_STANDARD_LIBRARIES="-L/usr/local/lib -lcasa_imageanalysis" && \
   make
 
+# Copy nrao-carta-backend into image (must be in Dockerfile directory)
+# COPY . /root/carta-backend
+
+
 # Forward port so that the webapp can properly access it
 # from outside of the container
 EXPOSE 3002
