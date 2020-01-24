@@ -7,7 +7,7 @@ RUN \
   apt-get install -y bison build-essential byobu cmake curl default-jre emacs \
     fftw3-dev flex gdb gcc gfortran git git-lfs htop libblas-dev \
     libcfitsio-dev libfmt-dev libgtest-dev libhdf5-dev liblapack-dev libncurses-dev \
-    libprotobuf-dev libreadline-dev libssl-dev libstarlink-ast-dev libtbb-dev libzstd-dev libxml2-dev \
+    libprotobuf-dev libreadline-dev libssl-dev libstarlink-ast-dev libtbb-dev libzstd-dev libxml2-dev libjson-c-dev\
     libgsl-dev man protobuf-compiler python-pip python3-pip software-properties-common \
     unzip vim wcslib-dev wget
 
@@ -61,7 +61,7 @@ RUN \
 
 # Build carta-backend
 RUN \
-  git clone https://github.com/CARTAvis/carta-backend.git && \
+  git clone -b qi/catalog_for_docker https://github.com/CARTAvis/carta-backend.git && \
   cd carta-backend && \
   git submodule init && git submodule update && \
   mkdir build && cd build && \
