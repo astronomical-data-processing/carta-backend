@@ -40,4 +40,9 @@
 #define TARGET_PARTIAL_REGION_TIME 1000
 #define PROFILE_COMPLETE 1.0
 
+// scripting timeouts
+#define OPEN_FILE_TIMEOUT 10     // seconds
+#define RENDERED_DATA_TIMEOUT 10 // seconds
+#define SAVE_PLOT_TIMEOUT 10     // seconds
+
 #endif // CARTA_BACKEND__INTERFACECONSTANTS_H_

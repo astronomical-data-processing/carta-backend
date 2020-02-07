@@ -3,6 +3,8 @@
 #ifndef CARTA_BACKEND_GRPCSERVER_CARTAGRPCSERVICE_H_
 #define CARTA_BACKEND_GRPCSERVER_CARTAGRPCSERVICE_H_
 
+#include <condition_variable>
+
 #include <grpc++/grpc++.h>
 
 #include <cartavis/carta_service.grpc.pb.h>
@@ -48,10 +50,18 @@ private:
     bool CheckFileId(uint32_t session_id, uint32_t file_id, const std::string& command, std::string& message);
     void LogMessage(const std::string& message);
 
+    // Get results for replies
+    bool GetPlotFilename(Session* session, int file_id);
+    bool GetPlotData(Session* session, int file_id);
+
     bool _verbose;
 
     // Map session_id to <Session*, connected>
     std::unordered_map<int, std::pair<Session*, bool>> _sessions;
+
+    // results for grpc replies
+    std::string _plot_filename;
+    std::string _plot_data;
 };
 
 #endif // CARTA_BACKEND_GRPCSERVER_CARTAGRPCSERVICE_H_

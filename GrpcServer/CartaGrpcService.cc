@@ -2,9 +2,12 @@
 
 #include "CartaGrpcService.h"
 
+#include <chrono>
+
 #include <carta-protobuf/defs.pb.h>
 #include <carta-protobuf/enums.pb.h>
 
+#include "../InterfaceConstants.h"
 #include "../Util.h"
 
 CartaGrpcService::CartaGrpcService(bool verbose) : _verbose(verbose) {}
@@ -52,6 +55,7 @@ bool CartaGrpcService::CheckFileId(uint32_t session_id, uint32_t file_id, const 
 }
 
 void CartaGrpcService::LogMessage(const std::string& message) {
+    // Use Log() in Util.h for error messages
     if (_verbose) {
         std::cout << "Scripting client request: " << message << std::endl;
     }
@@ -125,9 +129,25 @@ grpc::Status CartaGrpcService::getRenderedImage(
     grpc::Status status(grpc::Status::OK);
     std::string message;
     if (CheckFileId(session_id, file_id, "getRenderedImage", message)) {
-        _sessions[session_id].first->ScriptClientGetRenderedImage(file_id);
-        // TODO: get session result here
-        status = grpc::Status(grpc::StatusCode::UNIMPLEMENTED, message);
+        // send request to session
+        auto session = _sessions[session_id].first;
+        session->ScriptClientGetRenderedImage(file_id);
+
+        // get result (plot data) or timeout
+        auto t_start = std::chrono::system_clock::now();
+        while (!GetPlotData(session, file_id)) {
+            auto t_end = std::chrono::system_clock::now();
+            std::chrono::duration<double> elapsed_sec = t_end - t_start;
+            if (elapsed_sec.count() > RENDERED_DATA_TIMEOUT) {
+                // plot data timed out
+                message = fmt::format("getRenderedImage for file ID {} timed out", file_id);
+                Log(session_id, message);
+                return grpc::Status(grpc::StatusCode::DEADLINE_EXCEEDED, message);
+            }
+        }
+
+        // set reply
+        reply->set_base64(_plot_data.c_str(), _plot_data.size());
     } else {
         Log(session_id, message);
         status = grpc::Status(grpc::StatusCode::OUT_OF_RANGE, message);
@@ -141,32 +161,67 @@ grpc::Status CartaGrpcService::openFile(grpc::ServerContext* context, const CART
     auto file_id = request->file_id();
     auto directory = request->directory();
     auto file = request->file();
-    LogMessage(fmt::format("openFile for session {} file {} directory {} file {}", session_id, file_id, directory, file));
+    auto hdu = request->hdu();
+    LogMessage(fmt::format("openFile for session {} file ID {} directory {} file {} hdu {}", session_id, file_id, directory, file, hdu));
 
     grpc::Status status(grpc::Status::OK);
+    reply->set_file_id(file_id);
     std::string message;
-    if (CheckFileId(session_id, file_id, "openFile", message)) {
-        // Open file in session if valid render mode
+    if (CheckSessionId(session_id, "openFile", message)) {
+        // check if file id already exists
         auto session = _sessions[session_id].first;
-        auto hdu = request->hdu();
+        if (session->HasFileId(file_id)) {
+            std::string message = fmt::format("openFile failed: file ID {} already exists", file_id);
+            Log(session_id, message);
+            reply->set_success(false);
+            reply->set_message(message);
+            return grpc::Status(grpc::StatusCode::ALREADY_EXISTS, message);
+        }
+
+        // Check render mode
         int render_mode = request->render_mode();
         if (CARTA::RenderMode_IsValid(render_mode)) {
             CARTA::RenderMode mode = (CARTA::RenderMode)render_mode;
+
+            // send request to session
             session->ScriptClientOpenFile(directory, file, hdu, file_id, mode);
-            // TODO: get session result here
-            status = grpc::Status(grpc::StatusCode::UNIMPLEMENTED, message);
+
+            // get result (new file id or error message), or timeout
+            auto t_start = std::chrono::system_clock::now();
+            while (!session->HasFileId(file_id)) {
+                // check for error message for open file
+                message = session->GetFileOpenError(file_id);
+                if (!message.empty()) {
+                    Log(session_id, message);
+                    reply->set_success(false);
+                    reply->set_message(message);
+                    return grpc::Status(grpc::StatusCode::UNKNOWN, message);
+                }
+
+                // check for timeout
+                auto t_end = std::chrono::system_clock::now();
+                std::chrono::duration<double> elapsed_sec = t_end - t_start;
+                if (elapsed_sec.count() > OPEN_FILE_TIMEOUT) {
+                    message = fmt::format("openFile for file ID {} timed out", file_id);
+                    Log(session_id, message);
+                    reply->set_success(false);
+                    reply->set_message(message);
+                    return grpc::Status(grpc::StatusCode::DEADLINE_EXCEEDED, message);
+                }
+            }
+
+            // set reply
+            reply->set_success(true);
         } else {
-            message = fmt::format("openFile {} failed: invalid render mode.", file_id);
+            message = fmt::format("openFile file ID {} failed: invalid render mode {}.", file_id, render_mode);
             Log(session_id, message);
             reply->set_success(false);
-            reply->set_file_id(file_id);
             reply->set_message(message);
             status = grpc::Status(grpc::StatusCode::INVALID_ARGUMENT, message);
         }
     } else {
         Log(session_id, message);
         reply->set_success(false);
-        reply->set_file_id(file_id);
         reply->set_message(message);
         status = grpc::Status(grpc::StatusCode::OUT_OF_RANGE, message);
     }
@@ -182,9 +237,27 @@ grpc::Status CartaGrpcService::savePlot(grpc::ServerContext* context, const CART
     grpc::Status status(grpc::Status::OK);
     std::string message;
     if (CheckFileId(session_id, file_id, "savePlot", message)) {
-        _sessions[session_id].first->ScriptClientSavePlot(file_id);
-        // TODO: get session result here
-        status = grpc::Status(grpc::StatusCode::UNIMPLEMENTED, message);
+        auto session = _sessions[session_id].first;
+        session->ScriptClientSavePlot(file_id);
+
+        // get result (plot filename) or timeout
+        auto t_start = std::chrono::system_clock::now();
+        while (!GetPlotFilename(session, file_id)) {
+            auto t_end = std::chrono::system_clock::now();
+            std::chrono::duration<double> elapsed_sec = t_end - t_start;
+            if (elapsed_sec.count() > SAVE_PLOT_TIMEOUT) {
+                // plotname timed out
+                message = fmt::format("savePlot for file ID {} timed out", file_id);
+                Log(session_id, message);
+                reply->set_success(false);
+                reply->set_message(message);
+                return grpc::Status(grpc::StatusCode::DEADLINE_EXCEEDED, message);
+            }
+        }
+
+        // set reply
+        reply->set_success(true);
+        reply->set_file_name(_plot_filename);
     } else {
         Log(session_id, message);
         reply->set_success(false);
@@ -304,4 +377,16 @@ grpc::Status CartaGrpcService::showGrid(grpc::ServerContext* context, const CART
     }
 
     return status;
+}
+
+// get results
+
+bool CartaGrpcService::GetPlotFilename(Session* session, int file_id) {
+    _plot_filename = session->GetPlotFilename(file_id);
+    return !_plot_filename.empty();
+}
+
+bool CartaGrpcService::GetPlotData(Session* session, int file_id) {
+    _plot_data = session->GetRenderedImage(file_id);
+    return !_plot_data.empty();
 }

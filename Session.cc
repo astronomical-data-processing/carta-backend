@@ -1509,8 +1509,8 @@ void Session::OnScriptRenderedImageData(const CARTA::ScriptRenderedImageData& me
     _plot_data[file_id] = message.rendered_data();
 }
 
-std::string Session::GetRenderedData(int file_id) {
-    // Result of ScriptGetRenderedData
+std::string Session::GetRenderedImage(int file_id) {
+    // Result of ScriptGetRenderedImage
     std::string plot_data;
     if (_plot_data.count(file_id)) {
         plot_data = _plot_data[file_id];

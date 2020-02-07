@@ -92,7 +92,7 @@ public:
     // results
     std::string GetFileOpenError(int file_id);
     std::string GetPlotFilename(int file_id);
-    std::string GetRenderedData(int file_id);
+    std::string GetRenderedImage(int file_id);
 
     void SendPendingMessages();
     void AddToSetChannelQueue(CARTA::SetImageChannels message, uint32_t request_id) {
