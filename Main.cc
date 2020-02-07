@@ -49,7 +49,7 @@ static uWS::Hub websocket_hub;
 static uint32_t session_number;
 
 // grpc server for scripting client
-static CartaGrpcService* carta_grpc_service;
+static std::unique_ptr<CartaGrpcService> carta_grpc_service;
 static std::unique_ptr<grpc::Server> carta_grpc_server;
 
 // command-line arguments
@@ -331,6 +331,24 @@ void OnMessage(uWS::WebSocket<uWS::SERVER>* ws, char* raw_message, size_t length
                     tsk = new (tbb::task::allocate_root(session->Context())) OnSetContourParametersTask(session, message);
                     break;
                 }
+                case CARTA::EventType::SCRIPT_SAVE_PLOT_ACK: {
+                    CARTA::ScriptSavePlotAck message;
+                    if (message.ParseFromArray(event_buf, event_length)) {
+                        session->OnScriptSavePlotAck(message, head.request_id);
+                    } else {
+                        fmt::print("Bad SCRIPT_SAVE_PLOT_ACK message!\n");
+                    }
+                    break;
+                }
+                case CARTA::EventType::SCRIPT_RENDERED_IMAGE_DATA: {
+                    CARTA::ScriptRenderedImageData message;
+                    if (message.ParseFromArray(event_buf, event_length)) {
+                        session->OnScriptRenderedImageData(message, head.request_id);
+                    } else {
+                        fmt::print("Bad SCRIPT_RENDERED_IMAGE_DATA message!\n");
+                    }
+                    break;
+                }
                 default: {
                     // Copy memory into new buffer to be used and disposed by MultiMessageTask::execute
                     char* message_buffer = new char[event_length];
@@ -350,10 +368,9 @@ void OnMessage(uWS::WebSocket<uWS::SERVER>* ws, char* raw_message, size_t length
     }
 }
 
-bool StartGrpcService(int grpc_port) {
+void StartGrpcService(int grpc_port) {
     // Set up address buffer
     // When port is 0, grpc selects port returned in selected_port
-    bool service_started(false);
     int selected_port(grpc_port);
     std::string server_address = fmt::format("0.0.0.0:{}", selected_port);
 
@@ -363,21 +380,22 @@ bool StartGrpcService(int grpc_port) {
     builder.AddListeningPort(server_address, grpc::InsecureServerCredentials(), &selected_port);
 
     // Register and start carta grpc server
-    carta_grpc_service = new CartaGrpcService(verbose);
-    builder.RegisterService(carta_grpc_service);
+    carta_grpc_service = std::unique_ptr<CartaGrpcService>(new CartaGrpcService(verbose));
+    builder.RegisterService(carta_grpc_service.get());
     carta_grpc_server = builder.BuildAndStart();
     if (selected_port > 0) { // available port found
         fmt::print("CARTA gRPC service available at 0.0.0.0:{}\n", selected_port);
-        service_started = true;
     } else {
-        delete carta_grpc_service;
+        fmt::print("CARTA gRPC service failed to start");
+        carta_grpc_service.reset();
     }
-    return service_started;
 }
 
 void ExitBackend(int s) {
     fmt::print("Exiting backend.\n");
-    carta_grpc_server->Shutdown();
+    if (carta_grpc_server) {
+        carta_grpc_server->Shutdown();
+    }
     exit(0);
 }
 
@@ -412,7 +430,7 @@ int main(int argc, const char* argv[]) {
         sigaction(SIGINT, &sig_handler, nullptr);
 
         // define and get input arguments
-        int port(3002), grpc_port(0);
+        int port(3002), grpc_port(-1);
         int thread_count(tbb::task_scheduler_init::default_num_threads());
         { // get values then let Input go out of scope
             casacore::Input inp;
@@ -479,7 +497,9 @@ int main(int argc, const char* argv[]) {
         file_list_handler = new FileListHandler(permissions_map, use_permissions, root_folder, base_folder);
 
         // Start grpc service for scripting client
-        bool grpc_started = StartGrpcService(grpc_port);
+        if (grpc_port >= 0) {
+            StartGrpcService(grpc_port);
+        }
 
         session_number = 0;
 

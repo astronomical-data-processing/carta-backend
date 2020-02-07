@@ -27,6 +27,7 @@
 #include <carta-protobuf/region.pb.h>
 #include <carta-protobuf/register_viewer.pb.h>
 #include <carta-protobuf/resume_session.pb.h>
+#include <carta-protobuf/script_client_requests.pb.h>
 #include <carta-protobuf/set_cursor.pb.h>
 #include <carta-protobuf/set_image_channels.pb.h>
 #include <carta-protobuf/set_image_view.pb.h>
@@ -40,6 +41,8 @@
 #include "FileSettings.h"
 #include "Frame.h"
 #include "Util.h"
+
+class CartaGrpcService;
 
 class Session {
 public:
@@ -69,6 +72,27 @@ public:
     void OnRegionListRequest(const CARTA::RegionListRequest& request, uint32_t request_id);
     void OnRegionFileInfoRequest(const CARTA::RegionFileInfoRequest& request, uint32_t request_id);
     void OnResumeSession(const CARTA::ResumeSession& message, uint32_t request_id);
+
+    // Scripting client messages
+    // requests
+    bool HasFileId(int file_id);
+    void ScriptClientCloseFile(int file_id);
+    void ScriptClientGetRenderedImage(int file_id);
+    void ScriptClientOpenFile(
+        const std::string& directory, const std::string& file, const std::string& hdu, int file_id, CARTA::RenderMode mode);
+    void ScriptClientSavePlot(int file_id);
+    void ScriptClientSetColormap(int file_id, CARTA::ColorMap colormap);
+    void ScriptClientSetCoordinateSystem(int file_id, CARTA::CoordinateSystem coordinate_system);
+    void ScriptClientSetImageChannels(int file_id, int channel, int stokes);
+    void ScriptClientSetImageView(int file_id, CARTA::ImageBounds bounds);
+    void ScriptClientShowGrid(int file_id, bool show);
+    // responses
+    void OnScriptRenderedImageData(const CARTA::ScriptRenderedImageData& message, uint32_t request_id);
+    void OnScriptSavePlotAck(const CARTA::ScriptSavePlotAck& message, uint32_t request_id);
+    // results
+    std::string GetFileOpenError(int file_id);
+    std::string GetPlotFilename(int file_id);
+    std::string GetRenderedData(int file_id);
 
     void SendPendingMessages();
     void AddToSetChannelQueue(CARTA::SetImageChannels message, uint32_t request_id) {
@@ -241,6 +265,11 @@ private:
     static int _num_sessions;
     static int _exit_after_num_seconds;
     static bool _exit_when_all_sessions_closed;
+
+    // scripting response message info; key is file_id
+    std::unordered_map<int, std::string> _plot_data;
+    std::unordered_map<int, std::string> _plot_filename;
+    std::unordered_map<int, std::string> _open_file_error;
 };
 
 #endif // CARTA_BACKEND__SESSION_H_

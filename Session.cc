@@ -349,9 +349,10 @@ bool Session::OnOpenFile(const CARTA::OpenFile& message, uint32_t request_id, bo
 }
 
 void Session::OnCloseFile(const CARTA::CloseFile& message) {
-    CheckCancelAnimationOnFileClose(message.file_id());
-    _file_settings.ClearSettings(message.file_id());
-    DeleteFrame(message.file_id());
+    auto file_id = message.file_id();
+    CheckCancelAnimationOnFileClose(file_id);
+    _file_settings.ClearSettings(file_id);
+    DeleteFrame(file_id);
 }
 
 void Session::OnSetImageView(const CARTA::SetImageView& message) {
@@ -1473,4 +1474,133 @@ void Session::DeleteFrame(int file_id) {
         _frames[file_id].reset();
         _frames.erase(file_id);
     }
+}
+
+// *********************************************************************************
+// Scripting Client ICD implementation
+// Note it is up to the service to check the file id and return an error message to the client
+
+bool Session::HasFileId(int file_id) {
+    return _frames.count(file_id);
+}
+
+void Session::ScriptClientCloseFile(int file_id) {
+    CARTA::ScriptCloseFile message;
+    message.set_file_id(file_id);
+    SendFileEvent(file_id, CARTA::EventType::SCRIPT_CLOSE_FILE, 0, message);
+}
+
+void Session::ScriptClientGetRenderedImage(int file_id) {
+    // clear old results (rendered plot data)
+    if (_plot_data.count(file_id)) {
+        _plot_data[file_id].clear();
+    }
+
+    CARTA::ScriptGetRenderedImage message;
+    message.set_file_id(file_id);
+    SendFileEvent(file_id, CARTA::EventType::SCRIPT_GET_RENDERED_IMAGE, 0, message);
+}
+
+void Session::OnScriptRenderedImageData(const CARTA::ScriptRenderedImageData& message, uint32_t request_id) {
+    // Response to ScriptGetRenderedImage
+    int file_id(message.file_id());
+    _plot_data[file_id] = message.rendered_data();
+}
+
+std::string Session::GetRenderedData(int file_id) {
+    // Result of ScriptGetRenderedData
+    std::string plot_data;
+    if (_plot_data.count(file_id)) {
+        plot_data = _plot_data[file_id];
+    }
+    return plot_data;
+}
+
+void Session::ScriptClientOpenFile(
+    const std::string& directory, const std::string& file, const std::string& hdu, int file_id, CARTA::RenderMode mode) {
+    // clear old results (error message from open file, if any)
+    if (_open_file_error.count(file_id)) {
+        _open_file_error[file_id].clear();
+    }
+
+    // send request to frontend
+    CARTA::ScriptOpenFile message;
+    message.set_directory(directory);
+    message.set_file(file);
+    message.set_hdu(hdu);
+    message.set_file_id(file_id);
+    message.set_render_mode(mode);
+    SendEvent(CARTA::EventType::SCRIPT_OPEN_FILE, 0, message);
+}
+
+std::string Session::GetFileOpenError(int file_id) {
+    // Result of ScriptOpenFile when it fails
+    std::string error_message;
+    if (_open_file_error.count(file_id)) {
+        error_message = _open_file_error[file_id];
+    }
+    return error_message;
+}
+
+void Session::ScriptClientSavePlot(int file_id) {
+    // clear old results (filename of saved plot)
+    if (_plot_filename.count(file_id)) {
+        _plot_filename[file_id].clear();
+    }
+
+    CARTA::ScriptSavePlot message;
+    message.set_file_id(file_id);
+    SendFileEvent(file_id, CARTA::EventType::SCRIPT_SAVE_PLOT, 0, message);
+}
+
+void Session::OnScriptSavePlotAck(const CARTA::ScriptSavePlotAck& message, uint32_t request_id) {
+    // Response to ScriptSavePlot
+    int file_id(message.file_id());
+    _plot_filename[file_id] = message.file_name();
+}
+
+std::string Session::GetPlotFilename(int file_id) {
+    // Result of ScriptSavePlot
+    std::string filename;
+    if (_plot_filename.count(file_id)) {
+        filename = _plot_filename[file_id];
+    }
+    return filename;
+}
+
+void Session::ScriptClientSetColormap(int file_id, CARTA::ColorMap colormap) {
+    CARTA::ScriptSetColormap message;
+    message.set_file_id(file_id);
+    message.set_colormap(colormap);
+    SendFileEvent(file_id, CARTA::EventType::SCRIPT_SET_COLORMAP, 0, message);
+}
+
+void Session::ScriptClientSetCoordinateSystem(int file_id, CARTA::CoordinateSystem coordinate_system) {
+    CARTA::ScriptSetCoordsys message;
+    message.set_file_id(file_id);
+    message.set_coord_system(coordinate_system);
+    SendFileEvent(file_id, CARTA::EventType::SCRIPT_SET_COORDSYS, 0, message);
+}
+
+void Session::ScriptClientSetImageChannels(int file_id, int channel, int stokes) {
+    CARTA::ScriptSetImageChannels message;
+    message.set_file_id(file_id);
+    message.set_channel(channel);
+    message.set_stokes(stokes);
+    SendFileEvent(file_id, CARTA::EventType::SCRIPT_SET_IMAGE_CHANNELS, 0, message);
+}
+
+void Session::ScriptClientSetImageView(int file_id, CARTA::ImageBounds bounds) {
+    CARTA::ScriptSetImageView message;
+    message.set_file_id(file_id);
+    auto new_bounds = message.mutable_image_bounds();
+    new_bounds = &bounds;
+    SendFileEvent(file_id, CARTA::EventType::SCRIPT_SET_IMAGE_VIEW, 0, message);
+}
+
+void Session::ScriptClientShowGrid(int file_id, bool show) {
+    CARTA::ScriptShowGrid message;
+    message.set_file_id(file_id);
+    message.set_show_grid(show);
+    SendFileEvent(file_id, CARTA::EventType::SCRIPT_SHOW_GRID, 0, message);
 }
