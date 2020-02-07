@@ -290,6 +290,7 @@ bool Session::OnOpenFile(const CARTA::OpenFile& message, uint32_t request_id, bo
 
     bool success(false);
     if (!info_loaded) {
+        _open_file_error[file_id] = err_message;
         ResetFileInfo(); // clean up
     } else {
         // Set hdu if empty
@@ -333,6 +334,7 @@ bool Session::OnOpenFile(const CARTA::OpenFile& message, uint32_t request_id, bo
             success = true;
         } else {
             err_message = frame->GetErrorMessage();
+            _open_file_error[file_id] = err_message;
         }
     }
 
