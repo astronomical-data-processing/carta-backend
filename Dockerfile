@@ -9,7 +9,7 @@ RUN \
     libcfitsio-dev libfmt-dev libgtest-dev libhdf5-dev liblapack-dev libncurses-dev \
     libprotobuf-dev libreadline-dev libssl-dev libstarlink-ast-dev libtbb-dev libzstd-dev \
     libgsl-dev man protobuf-compiler python-pip python3-pip software-properties-common \
-    unzip vim wcslib-dev wget
+    unzip vim wcslib-dev wget libc-ares-dev
 
 # Install googletest
 RUN \
@@ -34,14 +34,15 @@ RUN \
   cd sofa/20180130/f77/src && make && cp libsofa.a /usr/lib/libsofa.a && \
   cd /root && rm -rf sofa
 
-# casacore + casa_imageanalysis (add '-j<N>' to 'make' to speed things up)
+# casacore + casa_imageanalysis (add '-j<N>' to 'make' to speed things up).  Build grpc twice, from module then from package
 RUN \
   cd /root && \
   git clone -q --recursive https://open-bitbucket.nrao.edu/scm/casa/carta-casacore.git && \
   mkdir -p carta-casacore/build && cd carta-casacore/build && \
-  cmake .. -DUSE_FFTW3=ON -DUSE_HDF5=ON -DUSE_THREADS=ON -DUSE_OPENMP=ON -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTING=OFF -DBoost_NO_BOOST_CMAKE=1 -DBUILD_PYTHON=OFF -DUseCcache=1 -DHAS_CXX11=1 -DgRPC_INSTALL=ON -DgRPC_BUILD_TESTS=OFF -DgRPC_PROTOBUF_PROVIDER=package -DgRPC_ZLIB_PROVIDER=package -DgRPC_CARES_PROVIDER=package -DgRPC_SSL_PROVIDER=package -DDATA_DIR=/usr/local/share/casacore/data && \
+  cmake .. -DUSE_FFTW3=ON -DUSE_HDF5=ON -DUSE_THREADS=ON -DUSE_OPENMP=ON -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTING=OFF -DBoost_NO_BOOST_CMAKE=1 -DBUILD_PYTHON=OFF -DUseCcache=1 -DHAS_CXX11=1 -DgRPC_INSTALL=ON -DgRPC_BUILD_TESTS=OFF -DgRPC_PROTOBUF_PROVIDER=module -DgRPC_ZLIB_PROVIDER=module -DgRPC_CARES_PROVIDER=module -DgRPC_SSL_PROVIDER=package -DDATA_DIR=/usr/local/share/casacore/data && \
   make -j2 && make install && \
-  cd /root && rm -rf carta-casacore
+  cmake .. -DUSE_FFTW3=ON -DUSE_HDF5=ON -DUSE_THREADS=ON -DUSE_OPENMP=ON -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTING=OFF -DBoost_NO_BOOST_CMAKE=1 -DBUILD_PYTHON=OFF -DUseCcache=1 -DHAS_CXX11=1 -DgRPC_INSTALL=ON -DgRPC_BUILD_TESTS=OFF -DgRPC_PROTOBUF_PROVIDER=package -DgRPC_ZLIB_PROVIDER=package -DgRPC_CARES_PROVIDER=package -DgRPC_SSL_PROVIDER=package -DDATA_DIR=/usr/local/share/casacore/data && \
+  make -j2 && make install
 
 # uWS
 RUN \
@@ -71,6 +72,9 @@ RUN \
 # Forward port so that the webapp can properly access it
 # from outside of the container
 EXPOSE 3002
+# Forward port so that the script client can properly access it
+# from outside of the container
+EXPOSE 50051
 
 ENV HOME /root
 # Required for running the backend
