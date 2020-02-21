@@ -158,3 +158,36 @@ bool GaussianSmooth(const float* src_data, float* dest_data, int64_t src_width, 
     }
     return true;
 }
+
+bool BlockSmooth(const float* src_data, float* dest_data, int64_t src_height, int64_t src_width, int64_t dest_width, int64_t dest_height,
+    int64_t x_offset, int64_t y_offset, int smoothing_factor) {
+#pragma omp parallel for
+    for (int64_t j = 0; j < src_height; ++j) {
+        for (int64_t i = 0; i != src_width; ++i) {
+            float pixel_sum = 0;
+            int pixel_count = 0;
+            int64_t image_row = y_offset + (j * smoothing_factor);
+            for (int64_t pixel_y = 0; pixel_y < smoothing_factor; pixel_y++) {
+                if (image_row >= dest_height) {
+                    continue;
+                }
+                int64_t image_col = x_offset + (i * smoothing_factor);
+                for (int64_t pixel_x = 0; pixel_x < smoothing_factor; pixel_x++) {
+                    if (image_col >= dest_width) {
+                        continue;
+                    }
+                    float pix_val = src_data[(image_row * dest_width) + image_col];
+                    if (std::isfinite(pix_val)) {
+                        pixel_count++;
+                        pixel_sum += pix_val;
+                    }
+                    image_col++;
+                }
+                image_row++;
+            }
+            dest_data[j * src_width + i] = pixel_count ? pixel_sum / pixel_count : NAN;
+        }
+    }
+
+    return true;
+}
