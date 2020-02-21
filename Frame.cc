@@ -879,18 +879,10 @@ bool Frame::GetRasterData(std::vector<float>& image_data, CARTA::ImageBounds& bo
 
     if (mean_filter && mip > 1) {
         // Perform down-sampling by calculating the mean for each MIPxMIP block
-        BlockSmooth(
-            _image_cache.data(), image_data.data(), num_rows_region, row_length_region, num_image_columns, num_image_rows, x, y, mip);
+        BlockSmooth(_image_cache.data(), image_data.data(), num_image_columns, num_image_rows, row_length_region, num_rows_region, x, y, mip);
     } else {
         // Nearest neighbour filtering
-#pragma omp parallel for
-        for (size_t j = 0; j < num_rows_region; ++j) {
-            for (auto i = 0; i < row_length_region; i++) {
-                auto image_row = y + j * mip;
-                auto image_col = x + i * mip;
-                image_data[j * row_length_region + i] = _image_cache[(image_row * num_image_columns) + image_col];
-            }
-        }
+        NearestNeighbor(_image_cache.data(), image_data.data(), num_image_columns, row_length_region, num_rows_region, x, y, mip);
     }
     return true;
 }
